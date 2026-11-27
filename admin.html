@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kwiz — Admin Control</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="shared.js"></script>
+  <style>
+    .admin-gate {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.14), transparent 50%),
+        var(--bg-app);
+    }
+
+    .admin-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      padding: 6px;
+      border-radius: var(--radius-md);
+      margin-bottom: 18px;
+    }
+
+    .admin-tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 9px 6px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .admin-tab-btn i {
+      width: 17px;
+      height: 17px;
+    }
+
+    .admin-tab-btn.active {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      color: #ffffff;
+    }
+
+    .admin-panel {
+      display: none;
+    }
+
+    .admin-panel.active {
+      display: block;
+    }
+
+    .panel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px 16px;
+      margin-bottom: 16px;
+    }
+
+    .panel-card-title {
+      font-size: 1.02rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .question-builder-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 13px;
+      margin-bottom: 12px;
+    }
+
+    .q-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .manage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 13px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .manage-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-sm {
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-sm.danger {
+      border-color: rgba(244, 63, 94, 0.45);
+      background: rgba(244, 63, 94, 0.14);
+      color: #fda4af;
+    }
+
+    .edit-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 13, 25, 0.88);
+      backdrop-filter: blur(6px);
+      z-index: 120;
+      padding: 20px 16px;
+      overflow-y: auto;
+    }
+
+    .edit-modal.open {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .edit-modal-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-focus);
+      border-radius: var(--radius-lg);
+      padding: 20px 18px;
+      margin-top: 20px;
+    }
+
+    select.input-control {
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+        linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+      background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 13px) calc(50% - 3px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      padding-right: 34px;
+    }
+
+    textarea.input-control {
+      min-height: 76px;
+      resize: vertical;
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+  <!-- STRICT ADMIN PASSWORD LOCK SCREEN -->
+  <section id="adminLockScreen" class="admin-gate" aria-label="Admin Security Gate">
+    <div class="auth-card">
+      <div class="brand-header">
+        <div class="brand-logo-frame">
+          <img id="gateLogo" src="logo.png" alt="Kwiz Logo" />
+        </div>
+        <h1 class="brand-title">Kwiz <span>Admin</span></h1>
+        <p class="brand-subtitle">Restricted area — enter the master admin password</p>
+      </div>
+
+      <div id="gateAlert" class="status-banner"></div>
+
+      <form id="adminUnlockForm" class="auth-form active" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="adminGatePassword">Admin Password</label>
+          <div class="input-box">
+            <input
+              type="password"
+              id="adminGatePassword"
+              class="input-control has-toggle"
+              placeholder="Enter admin password"
+              autocomplete="off"
+              required
+            />
+            <button type="button" id="toggleGateEye" class="eye-btn" aria-label="Show or hide password">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Unlock Admin Dashboard</button>
+      </form>
+
+      <div style="margin-top: 14px; text-align: center;">
+        <a href="index.html" style="font-size: 0.82rem; color: var(--text-secondary); text-decoration: none;">
+          ← Return to Home
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROTECTED ADMIN DASHBOARD (Hidden until password matches) -->
+  <div id="adminWorkspace" class="app-shell" style="display: none;">
+    <header class="top-bar">
+      <a href="index.html" class="top-brand">
+        <img id="adminBrandLogo" src="logo.png" alt="Kwiz" />
+        <div class="top-brand-text">Kwiz <span>Admin</span></div>
+      </a>
+      <button type="button" id="lockAdminBtn" class="btn-ghost" style="display:inline-flex; align-items:center; gap:5px;">
+        <i data-lucide="lock" style="width:14px; height:14px;"></i> Lock
+      </button>
+    </header>
+
+    <div id="adminToast" class="status-banner" role="status"></div>
+
+    <!-- ADMIN NAVIGATION TABS -->
+    <div class="admin-tabs" role="tablist">
+      <button type="button" class="admin-tab-btn active" data-tab="createQuizTab">
+        <i data-lucide="sparkles"></i>
+        <span>Kwiz Team</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="eventsTab">
+        <i data-lucide="calendar-star"></i>
+        <span>Events</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="usersTab">
+        <i data-lucide="users"></i>
+        <span>Users</span>
+      </button>
+      <button type="button" class="admin-tab-btn" data-tab="quizzesTab">
+        <i data-lucide="layers"></i>
+        <span>Quizzes</span>
+      </button>
+    </div>
+
+    <!-- ==================== TAB 1: CREATE KWIZ TEAM QUIZ ==================== -->
+    <section id="createQuizTab" class="admin-panel active">
+      <div class="panel-card">
+        <h2 class="panel-card-title">
+          <i data-lucide="zap" style="width:18px; height:18px; color:var(--accent-warm);"></i>
+          Publish Official "Kwiz Team" Quiz
+        </h2>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px;">
+          Quizzes created here are published under <strong>Kwiz Team</strong> and automatically appear in the Home Spotlight slideshow.
+        </p>
+
+        <form id="kwizTeamQuizForm" style="display:flex; flex-direction:column; gap:13px;">
+          <div class="field-group">
+            <label class="field-label" for="ktQuizTitle">Quiz Title *</label>
+            <input type="text" id="ktQuizTitle" class="input-control" placeholder="e.g. Ultimate Science Showdown" required />
+          </div>
+
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label" for="ktQuizCategory">Category *</label>
+              <select id="ktQuizCategory" class="input-control">
+                <option value="General Knowledge">General Knowledge</option>
+                <option value="Science & Tech">Science &amp; Tech</option>
+                <option value="Pop Culture">Pop Culture</option>
+                <option value="History & Geography">History &amp; Geography</option>
+                <option value="Sports & Gaming">Sports &amp; Gaming</option>
+                <option value="Custom">Custom</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="ktCoverImage">Slideshow Cover Image URL</label>
+              <input type="url" id="ktCoverImage" class="input-control" placeholder="https://example.com/banner.jpg" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="ktQuizDesc">Short Description</label>
+            <textarea id="ktQuizDesc" class="input-control" placeholder="What is this official Kwiz Team challenge about?"></textarea>
+          </div>
+
+          <div class="section-head" style="margin-top: 6px; margin-bottom: 4px;">
+            <span style="font-size:0.92rem; font-weight:800;">Questions (Mixed Formats)</span>
+            <button type="button" id="addKtQuestionBtn" class="btn-sm">
+              <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Question
+            </button>
+          </div>
+
+          <div id="ktQuestionsContainer"></div>
+
+          <button type="submit" id="publishKtQuizBtn" class="submit-btn">
+            Publish Kwiz Team Quiz
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: LIVE EVENTS MANAGER ==================== -->
+    <section id="eventsTab" class="admin-panel">
+      <div class="panel-card">
+        <h2 class="panel-card-title">
+          <i data-lucide="trophy" style="width:18px; height:18px; color:var(--accent-warm);"></i>
+          Live Event &amp; App Theme Override
+        </h2>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px;">
+          Launch a limited-time contest. The selected theme, custom logo URL, and custom icon URL apply across Kwiz and automatically reset once the event ends.
+        </p>
+
+        <form id="eventConfigForm" style="display:flex; flex-direction:column; gap:13px;">
+          <div class="field-group">
+            <label class="field-label" for="evTitle">Event Name *</label>
+            <input type="text" id="evTitle" class="input-control" placeholder="e.g. Golden Championship Week" required />
+          </div>
+
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label" for="evTheme">App Event Theme</label>
+              <select id="evTheme" class="input-control">
+                <option value="default">Default (Midnight &amp; Cyan)</option>
+                <option value="royal-gold">Royal Gold</option>
+                <option value="crimson-arena">Crimson Arena</option>
+                <option value="emerald-forest">Emerald Forest</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="evEndsAt">Event End Date &amp; Time *</label>
+              <input type="datetime-local" id="evEndsAt" class="input-control" required />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="evPrize">Event Prize Description</label>
+            <input type="text" id="evPrize" class="input-control" placeholder="e.g. +5,000 Bonus Points &amp; Legend Badge" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="evContestQuiz">Contest Quiz</label>
+            <select id="evContestQuiz" class="input-control">
+              <option value="">-- Select a quiz for this contest --</option>
+            </select>
+          </div>
+
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label" for="evLogoUrl">Event Logo Image Link</label>
+              <input type="url" id="evLogoUrl" class="input-control" placeholder="https://.../event-logo.png" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="evIconUrl">Event Nav Icon Link</label>
+              <input type="url" id="evIconUrl" class="input-control" placeholder="https://.../event-icon.png" />
+            </div>
+          </div>
+
+          <button type="submit" id="saveEventBtn" class="submit-btn">
+            Activate / Update Live Event
+          </button>
+
+          <button
+            type="button"
+            id="resetEventBtn"
+            class="btn-ghost"
+            style="width:100%; border-color: rgba(244,63,94,0.5); color:#fda4af;"
+          >
+            End Event &amp; Reset App Branding Now
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: USERS DASHBOARD ==================== -->
+    <section id="usersTab" class="admin-panel">
+      <div class="panel-card">
+        <div class="section-head">
+          <h2 class="panel-card-title" style="margin-bottom:0;">
+            <i data-lucide="users" style="width:18px; height:18px; color:var(--accent-cyan);"></i>
+            Users Dashboard
+          </h2>
+          <span class="section-meta" id="usersTotalCount">0 users</span>
+        </div>
+        <div class="field-group" style="margin: 12px 0;">
+          <input type="search" id="adminUserSearch" class="input-control" placeholder="Filter users by name or @username..." />
+        </div>
+        <div id="adminUsersList"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: QUIZZES DASHBOARD ==================== -->
+    <section id="quizzesTab" class="admin-panel">
+      <div class="panel-card">
+        <div class="section-head">
+          <h2 class="panel-card-title" style="margin-bottom:0;">
+            <i data-lucide="layers" style="width:18px; height:18px; color:var(--accent-warm);"></i>
+            Quizzes Dashboard
+          </h2>
+          <span class="section-meta" id="quizzesTotalCount">0 quizzes</span>
+        </div>
+        <div class="field-group" style="margin: 12px 0;">
+          <input type="search" id="adminQuizSearch" class="input-control" placeholder="Filter quizzes by title, category, or author..." />
+        </div>
+        <div id="adminQuizzesList"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- EDIT MODAL (Used for editing Users or Quizzes) -->
+  <div id="adminEditModal" class="edit-modal" role="dialog" aria-modal="true">
+    <div class="edit-modal-card">
+      <div class="section-head" style="margin-bottom: 14px;">
+        <h3 id="editModalTitle" style="font-size:1.05rem; font-weight:800;">Edit Record</h3>
+        <button type="button" id="closeEditModalBtn" class="btn-sm">
+          <i data-lucide="x" style="width:14px; height:14px;"></i> Close
+        </button>
+      </div>
+      <div id="editModalBody"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav id="bottomNav" class="bottom-nav" aria-label="Primary Navigation" style="display:none;"></nav>
+
+  <script>
+    const ADMIN_SECRET = "christianguray_1227_27112026";
+    const ADMIN_UNLOCK_KEY = "kwiz_admin_unlocked_v1";
+
+    let usersBinData = { users: [] };
+    let quizzesBinData = { categories: [], activeEvent: {}, quizzes: [] };
+
+    function showToast(msg, type = "success") {
+      const el = document.getElementById("adminToast");
+      el.textContent = msg;
+      el.className = `status-banner show ${type}`;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setTimeout(() => {
+        el.className = "status-banner";
+      }, 4000);
+    }
+
+    // ==================== SECURITY GATE ====================
+    const lockScreen = document.getElementById("adminLockScreen");
+    const workspace = document.getElementById("adminWorkspace");
+    const gatePassInput = document.getElementById("adminGatePassword");
+    const gateAlert = document.getElementById("gateAlert");
+
+    document.getElementById("toggleGateEye").addEventListener("click", function () {
+      const show = gatePassInput.type === "password";
+      gatePassInput.type = show ? "text" : "password";
+      this.innerHTML = `<i data-lucide="${show ? "eye-off" : "eye"}"></i>`;
+      refreshLucideIcons();
+    });
+
+    function unlockDashboard() {
+      sessionStorage.setItem(ADMIN_UNLOCK_KEY, "true");
+      lockScreen.style.display = "none";
+      workspace.style.display = "block";
+      const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
+      renderBottomNav("admin", { ...sessionUser, role: "admin" });
+      loadAdminData();
+    }
+
+    function lockDashboard() {
+      sessionStorage.removeItem(ADMIN_UNLOCK_KEY);
+      gatePassInput.value = "";
+      workspace.style.display = "none";
+      document.getElementById("bottomNav").style.display = "none";
+      lockScreen.style.display = "flex";
+    }
+
+    document.getElementById("adminUnlockForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const entered = gatePassInput.value;
+      if (entered === ADMIN_SECRET) {
+        gateAlert.className = "status-banner";
+        unlockDashboard();
+      } else {
+        gateAlert.textContent = "Access denied. Invalid admin password.";
+        gateAlert.className = "status-banner show error";
+      }
+    });
+
+    document.getElementById("lockAdminBtn").addEventListener("click", lockDashboard);
+
+    // ==================== TABS ====================
+    document.querySelectorAll(".admin-tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".admin-tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    // ==================== KWIZ TEAM QUIZ BUILDER ====================
+    const ktQuestionsContainer = document.getElementById("ktQuestionsContainer");
+
+    function createQuestionBlock(index) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "question-builder-item";
+      wrapper.innerHTML = `
+        <div class="q-item-head">
+          <strong style="font-size:0.86rem; color:var(--accent-cyan);">Question #${index + 1}</strong>
+          <button type="button" class="btn-sm danger remove-q-btn">Remove</button>
+        </div>
+
+        <div class="field-group" style="margin-bottom:10px;">
+          <label class="field-label">Format</label>
+          <select class="input-control q-type-select">
+            <option value="mcq">Multiple Choice (4 Options)</option>
+            <option value="tf">True / False</option>
+            <option value="text">Type the Answer</option>
+          </select>
+        </div>
+
+        <div class="field-group" style="margin-bottom:10px;">
+          <label class="field-label">Question Prompt *</label>
+          <input type="text" class="input-control q-prompt-input" placeholder="Enter question text..." required />
+        </div>
+
+        <div class="q-dynamic-fields"></div>
+      `;
+
+      const typeSelect = wrapper.querySelector(".q-type-select");
+      const dynamicBox = wrapper.querySelector(".q-dynamic-fields");
+
+      function renderFormatInputs() {
+        const t = typeSelect.value;
+        if (t === "mcq") {
+          dynamicBox.innerHTML = `
+            <div class="row-2" style="margin-bottom:8px;">
+              <input type="text" class="input-control q-opt" placeholder="Option A" required />
+              <input type="text" class="input-control q-opt" placeholder="Option B" required />
+              <input type="text" class="input-control q-opt" placeholder="Option C" required />
+              <input type="text" class="input-control q-opt" placeholder="Option D" required />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Exact Correct Option *</label>
+              <input type="text" class="input-control q-answer-input" placeholder="Must match one of the 4 options" required />
+            </div>
+          `;
+        } else if (t === "tf") {
+          dynamicBox.innerHTML = `
+            <div class="field-group">
+              <label class="field-label">Correct Answer *</label>
+              <select class="input-control q-answer-input">
+                <option value="True">True</option>
+                <option value="False">False</option>
+              </select>
+            </div>
+          `;
+        } else {
+          dynamicBox.innerHTML = `
+            <div class="field-group">
+              <label class="field-label">Exact Expected Answer *</label>
+              <input type="text" class="input-control q-answer-input" placeholder="e.g. H2O" required />
+            </div>
+          `;
+        }
+      }
+
+      typeSelect.addEventListener("change", renderFormatInputs);
+      renderFormatInputs();
+
+      wrapper.querySelector(".remove-q-btn").addEventListener("click", () => {
+        if (ktQuestionsContainer.children.length <= 1) {
+          showToast("A quiz needs at least 1 question.", "error");
+          return;
+        }
+        wrapper.remove();
+        renumberQuestions();
+      });
+
+      return wrapper;
+    }
+
+    function renumberQuestions() {
+      Array.from(ktQuestionsContainer.children).forEach((el, idx) => {
+        el.querySelector("strong").textContent = `Question #${idx + 1}`;
+      });
+    }
+
+    document.getElementById("addKtQuestionBtn").addEventListener("click", () => {
+      ktQuestionsContainer.appendChild(createQuestionBlock(ktQuestionsContainer.children.length));
+    });
+
+    // Initialize with 1 question block
+    ktQuestionsContainer.appendChild(createQuestionBlock(0));
+
+    document.getElementById("kwizTeamQuizForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("ktQuizTitle").value.trim();
+      const category = document.getElementById("ktQuizCategory").value;
+      const coverImage = document.getElementById("ktCoverImage").value.trim();
+      const description = document.getElementById("ktQuizDesc").value.trim();
+
+      if (!title) {
+        showToast("Please enter a quiz title.", "error");
+        return;
+      }
+
+      const questions = [];
+      for (const block of Array.from(ktQuestionsContainer.children)) {
+        const type = block.querySelector(".q-type-select").value;
+        const prompt = block.querySelector(".q-prompt-input").value.trim();
+        const answer = block.querySelector(".q-answer-input").value.trim();
+
+        if (!prompt || !answer) {
+          showToast("Every question must have a prompt and a correct answer.", "error");
+          return;
+        }
+
+        let options = [];
+        if (type === "mcq") {
+          options = Array.from(block.querySelectorAll(".q-opt"))
+            .map((inp) => inp.value.trim())
+            .filter(Boolean);
+          if (options.length < 2) {
+            showToast("Multiple choice questions need at least 2 options.", "error");
+            return;
+          }
+          const matchesOption = options.some((o) => o.toLowerCase() === answer.toLowerCase());
+          if (!matchesOption) {
+            showToast(`Answer "${answer}" must match one of the options for "${prompt}".`, "error");
+            return;
+          }
+        } else if (type === "tf") {
+          options = ["True", "False"];
+        }
+
+        questions.push({ type, prompt, options, answer });
+      }
+
+      const btn = document.getElementById("publishKtQuizBtn");
+      btn.disabled = true;
+      btn.textContent = "Publishing...";
+
+      try {
+        const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        const list = Array.isArray(freshBin.quizzes) ? freshBin.quizzes : [];
+
+        const newQuiz = {
+          id: `qz_kt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title,
+          description,
+          category,
+          coverImage,
+          isOfficial: true,
+          authorId: "kwiz_team",
+          authorName: "Kwiz Team",
+          createdAt: new Date().toISOString(),
+          plays: 0,
+          likes: 0,
+          likedBy: [],
+          questions
+        };
+
+        list.unshift(newQuiz);
+        freshBin.quizzes = list;
+        await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
+
+        quizzesBinData = freshBin;
+        document.getElementById("kwizTeamQuizForm").reset();
+        ktQuestionsContainer.innerHTML = "";
+        ktQuestionsContainer.appendChild(createQuestionBlock(0));
+
+        populateEventQuizSelector();
+        renderQuizzesDashboard();
+        showToast(`Published "${title}" under Kwiz Team!`);
+      } catch (err) {
+        showToast("Failed to publish quiz: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Publish Kwiz Team Quiz";
+      }
+    });
+
+    // ==================== LIVE EVENTS MANAGER ====================
+    function populateEventQuizSelector() {
+      const sel = document.getElementById("evContestQuiz");
+      const quizzes = Array.isArray(quizzesBinData.quizzes) ? quizzesBinData.quizzes : [];
+      const currentVal = quizzesBinData.activeEvent?.contestQuizId || sel.value;
+
+      sel.innerHTML =
+        `<option value="">-- Select a quiz for this contest --</option>` +
+        quizzes
+          .map(
+            (q) =>
+              `<option value="${escapeHtml(q.id)}">${escapeHtml(q.title)} (${escapeHtml(q.authorName || "Creator")})</option>`
+          )
+          .join("");
+
+      if (currentVal) sel.value = currentVal;
+    }
+
+    function fillEventFormFromBin() {
+      const ev = quizzesBinData.activeEvent;
+      if (!ev) return;
+      document.getElementById("evTitle").value = ev.title || "";
+      document.getElementById("evTheme").value = ev.theme || "default";
+      document.getElementById("evPrize").value = ev.prize || "";
+      document.getElementById("evLogoUrl").value = ev.logoUrl || "";
+      document.getElementById("evIconUrl").value = ev.iconUrl || "";
+      if (ev.endsAt) {
+        // Format ISO string to yyyy-MM-ddTHH:mm for datetime-local
+        const dt = new Date(ev.endsAt);
+        if (!Number.isNaN(dt.getTime())) {
+          const pad = (n) => String(n).padStart(2, "0");
+          const localStr = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+          document.getElementById("evEndsAt").value = localStr;
+        }
+      }
+      populateEventQuizSelector();
+    }
+
+    document.getElementById("eventConfigForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("evTitle").value.trim();
+      const theme = document.getElementById("evTheme").value;
+      const endsAtRaw = document.getElementById("evEndsAt").value;
+      const prize = document.getElementById("evPrize").value.trim();
+      const contestQuizId = document.getElementById("evContestQuiz").value;
+      const logoUrl = document.getElementById("evLogoUrl").value.trim();
+      const iconUrl = document.getElementById("evIconUrl").value.trim();
+
+      if (!title || !endsAtRaw) {
+        showToast("Event Name and End Date/Time are required.", "error");
+        return;
+      }
+
+      const endsAtIso = new Date(endsAtRaw).toISOString();
+      const btn = document.getElementById("saveEventBtn");
+      btn.disabled = true;
+
+      try {
+        const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        freshBin.activeEvent = {
+          isActive: true,
+          title,
+          theme,
+          prize,
+          contestQuizId,
+          logoUrl,
+          iconUrl,
+          endsAt: endsAtIso
+        };
+        await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
+        quizzesBinData = freshBin;
+
+        await applyEventBranding(document.getElementById("adminBrandLogo"), freshBin);
+        const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
+        renderBottomNav("admin", { ...sessionUser, role: "admin" }, iconUrl);
+        showToast(`Live Event "${title}" is now active!`);
+      } catch (err) {
+        showToast("Error saving event: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("resetEventBtn").addEventListener("click", async () => {
+      try {
+        const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        freshBin.activeEvent = {
+          isActive: false,
+          title: "",
+          theme: "default",
+          prize: "",
+          contestQuizId: "",
+          logoUrl: "",
+          iconUrl: "",
+          endsAt: ""
+        };
+        await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
+        quizzesBinData = freshBin;
+        document.getElementById("eventConfigForm").reset();
+        await applyEventBranding(document.getElementById("adminBrandLogo"), freshBin);
+        const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
+        renderBottomNav("admin", { ...sessionUser, role: "admin" }, "");
+        showToast("Event ended and branding reset to default Kwiz theme.");
+      } catch (err) {
+        showToast("Failed to reset event: " + err.message, "error");
+      }
+    });
+
+    // ==================== USERS DASHBOARD (EDIT & DELETE) ====================
+    function renderUsersDashboard() {
+      const container = document.getElementById("adminUsersList");
+      const query = document.getElementById("adminUserSearch").value.trim().toLowerCase();
+      const all = Array.isArray(usersBinData.users) ? usersBinData.users : [];
+      document.getElementById("usersTotalCount").textContent = `${all.length} users`;
+
+      const filtered = all.filter(
+        (u) =>
+          (u.fullName || "").toLowerCase().includes(query) ||
+          (u.username || "").toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-box">No matching users found.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered
+        .map((u) => {
+          const pts = Number(u.stats?.totalScore) || 0;
+          const rInfo = getRankInfo(pts);
+          return `
+            <div class="manage-card">
+              <div style="min-width:0;">
+                <div style="font-size:0.94rem; font-weight:800;">
+                  ${escapeHtml(normalizeEmojiAvatar(u.avatar))} ${escapeHtml(u.fullName || u.username)}
+                  <span style="font-size:0.72rem; color:var(--accent-cyan);">(${escapeHtml(u.role || "user")})</span>
+                </div>
+                <div style="font-size:0.78rem; color:var(--text-secondary);">
+                  @${escapeHtml(u.username)} • ${escapeHtml(rInfo.name)} (${pts.toLocaleString()} pts)
+                </div>
+              </div>
+              <div class="manage-actions">
+                <button type="button" class="btn-sm" onclick="openEditUserModal('${escapeHtml(u.id)}')">Edit</button>
+                <button type="button" class="btn-sm danger" onclick="deleteUserAccount('${escapeHtml(u.id)}')">Delete</button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    document.getElementById("adminUserSearch").addEventListener("input", renderUsersDashboard);
+
+    function openEditUserModal(userId) {
+      const user = (usersBinData.users || []).find((u) => u.id === userId);
+      if (!user) return;
+
+      document.getElementById("editModalTitle").textContent = `Edit User: @${user.username}`;
+      document.getElementById("editModalBody").innerHTML = `
+        <form id="editUserForm" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="field-group">
+            <label class="field-label">Full Name</label>
+            <input type="text" id="euFullName" class="input-control" value="${escapeHtml(user.fullName || "")}" required />
+          </div>
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label">Username</label>
+              <input type="text" id="euUsername" class="input-control" value="${escapeHtml(user.username || "")}" required />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Role</label>
+              <select id="euRole" class="input-control">
+                <option value="user" ${user.role !== "admin" ? "selected" : ""}>User</option>
+                <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label">Total Points (0 - 100,000)</label>
+              <input type="number" id="euPoints" class="input-control" min="0" max="100000" value="${Number(user.stats?.totalScore) || 0}" required />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Replay Keys Used</label>
+              <input type="number" id="euKeysUsed" class="input-control" min="0" value="${Number(user.replayKeysUsed) || 0}" required />
+            </div>
+          </div>
+          <button type="submit" class="submit-btn">Save User Changes</button>
+        </form>
+      `;
+
+      document.getElementById("adminEditModal").classList.add("open");
+      refreshLucideIcons();
+
+      document.getElementById("editUserForm").onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          const freshUsers = await readBin(KWIZ_CONFIG.usersBinId);
+          const list = Array.isArray(freshUsers.users) ? freshUsers.users : [];
+          const target = list.find((u) => u.id === userId);
+          if (!target) return;
+
+          target.fullName = document.getElementById("euFullName").value.trim();
+          target.username = document.getElementById("euUsername").value.trim();
+          target.role = document.getElementById("euRole").value;
+          if (!target.stats) target.stats = { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 };
+          target.stats.totalScore = Math.max(
+            0,
+            Math.min(100000, Number(document.getElementById("euPoints").value) || 0)
+          );
+          target.replayKeysUsed = Math.max(0, Number(document.getElementById("euKeysUsed").value) || 0);
+
+          freshUsers.users = list;
+          await writeBin(KWIZ_CONFIG.usersBinId, freshUsers);
+          usersBinData = freshUsers;
+
+          const currentSess = getSessionUser();
+          if (currentSess && currentSess.id === target.id) {
+            setSessionUser(target);
+          }
+
+          closeEditModal();
+          renderUsersDashboard();
+          showToast(`Updated @${target.username}`);
+        } catch (err) {
+          showToast("Failed to update user: " + err.message, "error");
+        }
+      };
+    }
+
+    async function deleteUserAccount(userId) {
+      const user = (usersBinData.users || []).find((u) => u.id === userId);
+      if (!user) return;
+      if (!confirm(`Delete user "@${user.username}" permanently?`)) return;
+
+      try {
+        const freshUsers = await readBin(KWIZ_CONFIG.usersBinId);
+        freshUsers.users = (freshUsers.users || []).filter((u) => u.id !== userId);
+        await writeBin(KWIZ_CONFIG.usersBinId, freshUsers);
+        usersBinData = freshUsers;
+        renderUsersDashboard();
+        showToast(`Deleted user @${user.username}`);
+      } catch (err) {
+        showToast("Failed to delete user: " + err.message, "error");
+      }
+    }
+
+    // ==================== QUIZZES DASHBOARD (EDIT & DELETE) ====================
+    function renderQuizzesDashboard() {
+      const container = document.getElementById("adminQuizzesList");
+      const query = document.getElementById("adminQuizSearch").value.trim().toLowerCase();
+      const all = Array.isArray(quizzesBinData.quizzes) ? quizzesBinData.quizzes : [];
+      document.getElementById("quizzesTotalCount").textContent = `${all.length} quizzes`;
+
+      const filtered = all.filter(
+        (q) =>
+          (q.title || "").toLowerCase().includes(query) ||
+          (q.category || "").toLowerCase().includes(query) ||
+          (q.authorName || "").toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-box">No quizzes found.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered
+        .map(
+          (q) => `
+          <div class="manage-card">
+            <div style="min-width:0;">
+              <div style="font-size:0.94rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${escapeHtml(q.title)}
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-secondary);">
+                ${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Creator")} • ${(q.questions || []).length} Qs • ▶ ${Number(q.plays) || 0}
+              </div>
+            </div>
+            <div class="manage-actions">
+              <button type="button" class="btn-sm" onclick="openEditQuizModal('${escapeHtml(q.id)}')">Edit</button>
+              <button type="button" class="btn-sm danger" onclick="deleteQuizItem('${escapeHtml(q.id)}')">Delete</button>
+            </div>
+          </div>
+        `
+        )
+        .join("");
+    }
+
+    document.getElementById("adminQuizSearch").addEventListener("input", renderQuizzesDashboard);
+
+    function openEditQuizModal(quizId) {
+      const quiz = (quizzesBinData.quizzes || []).find((q) => q.id === quizId);
+      if (!quiz) return;
+
+      document.getElementById("editModalTitle").textContent = `Edit Quiz`;
+      document.getElementById("editModalBody").innerHTML = `
+        <form id="editQuizForm" style="display:flex; flex-direction:column; gap:12px;">
+          <div class="field-group">
+            <label class="field-label">Quiz Title</label>
+            <input type="text" id="eqTitle" class="input-control" value="${escapeHtml(quiz.title || "")}" required />
+          </div>
+          <div class="row-2">
+            <div class="field-group">
+              <label class="field-label">Category</label>
+              <input type="text" id="eqCategory" class="input-control" value="${escapeHtml(quiz.category || "")}" required />
+            </div>
+            <div class="field-group">
+              <label class="field-label">Author Display Name</label>
+              <input type="text" id="eqAuthor" class="input-control" value="${escapeHtml(quiz.authorName || "")}" required />
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Cover Image URL (for Slideshow)</label>
+            <input type="url" id="eqCover" class="input-control" value="${escapeHtml(quiz.coverImage || "")}" placeholder="https://..." />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Description</label>
+            <textarea id="eqDesc" class="input-control">${escapeHtml(quiz.description || "")}</textarea>
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.84rem; color:var(--text-secondary);">
+            <input type="checkbox" id="eqOfficial" ${quiz.isOfficial ? "checked" : ""} />
+            Feature in Kwiz Team Spotlight Slideshow
+          </label>
+          <button type="submit" class="submit-btn">Save Quiz Changes</button>
+        </form>
+      `;
+
+      document.getElementById("adminEditModal").classList.add("open");
+      refreshLucideIcons();
+
+      document.getElementById("editQuizForm").onsubmit = async (e) => {
+        e.preventDefault();
+        try {
+          const freshQuizzes = await readBin(KWIZ_CONFIG.quizzesBinId);
+          const list = Array.isArray(freshQuizzes.quizzes) ? freshQuizzes.quizzes : [];
+          const target = list.find((q) => q.id === quizId);
+          if (!target) return;
+
+          target.title = document.getElementById("eqTitle").value.trim();
+          target.category = document.getElementById("eqCategory").value.trim();
+          target.authorName = document.getElementById("eqAuthor").value.trim();
+          target.coverImage = document.getElementById("eqCover").value.trim();
+          target.description = document.getElementById("eqDesc").value.trim();
+          target.isOfficial = document.getElementById("eqOfficial").checked;
+
+          freshQuizzes.quizzes = list;
+          await writeBin(KWIZ_CONFIG.quizzesBinId, freshQuizzes);
+          quizzesBinData = freshQuizzes;
+
+          closeEditModal();
+          populateEventQuizSelector();
+          renderQuizzesDashboard();
+          showToast(`Updated quiz "${target.title}"`);
+        } catch (err) {
+          showToast("Failed to update quiz: " + err.message, "error");
+        }
+      };
+    }
+
+    async function deleteQuizItem(quizId) {
+      const quiz = (quizzesBinData.quizzes || []).find((q) => q.id === quizId);
+      if (!quiz) return;
+      if (!confirm(`Delete quiz "${quiz.title}" permanently?`)) return;
+
+      try {
+        const freshQuizzes = await readBin(KWIZ_CONFIG.quizzesBinId);
+        freshQuizzes.quizzes = (freshQuizzes.quizzes || []).filter((q) => q.id !== quizId);
+        await writeBin(KWIZ_CONFIG.quizzesBinId, freshQuizzes);
+        quizzesBinData = freshQuizzes;
+
+        populateEventQuizSelector();
+        renderQuizzesDashboard();
+        showToast(`Deleted quiz "${quiz.title}"`);
+      } catch (err) {
+        showToast("Failed to delete quiz: " + err.message, "error");
+      }
+    }
+
+    function closeEditModal() {
+      document.getElementById("adminEditModal").classList.remove("open");
+    }
+
+    document.getElementById("closeEditModalBtn").addEventListener("click", closeEditModal);
+
+    // ==================== INITIAL LOAD ====================
+    async function loadAdminData() {
+      try {
+        const [qData, uData] = await Promise.all([
+          readBin(KWIZ_CONFIG.quizzesBinId),
+          readBin(KWIZ_CONFIG.usersBinId)
+        ]);
+        quizzesBinData = qData;
+        usersBinData = uData;
+
+        const ev = await applyEventBranding(document.getElementById("adminBrandLogo"), qData);
+        const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
+        renderBottomNav("admin", { ...sessionUser, role: "admin" }, ev?.iconUrl || "");
+
+        fillEventFormFromBin();
+        renderUsersDashboard();
+        renderQuizzesDashboard();
+        refreshLucideIcons();
+      } catch (err) {
+        showToast("Sync error: " + err.message, "error");
+      }
+    }
+
+    // Boot state
+    applyEventBranding(document.getElementById("gateLogo"));
+    if (sessionStorage.getItem(ADMIN_UNLOCK_KEY) === "true") {
+      unlockDashboard();
+    } else {
+      refreshLucideIcons();
+    }
+  </script>
+</body>
+</html>
