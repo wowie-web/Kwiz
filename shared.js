@@ -4,8 +4,62 @@ const KWIZ_CONFIG = {
   quizzesBinId: "6b0973751b390e1b559b4eb9",
   baseUrl: "https://api.jsonbin.io/v3/b",
   sessionKey: "kwiz_active_session_v1",
-  defaultLogo: "logo.png"
+  defaultLogo: "logo.png",
+  maxPoints: 100000,
+  replayKeyMinPoints: 50000
 };
+
+// Ascending rank ladder from 0 to 100,000 points (each tier has 5 stars)
+const KWIZ_RANKS = [
+  { key: "rookie",     name: "Rookie",     image: "Rookie.png",     min: 0,     max: 14284,  maxReplayKeys: 0 },
+  { key: "novice",     name: "Novice",     image: "Novice.png",     min: 14285, max: 28569,  maxReplayKeys: 0 },
+  { key: "apprentice", name: "Apprentice", image: "Apprentice.png", min: 28570, max: 42854,  maxReplayKeys: 0 },
+  { key: "master",     name: "Master",     image: "Master.png",     min: 42855, max: 57139,  maxReplayKeys: 1 },
+  { key: "grandmaster",name: "Grandmaster",image: "Grandmaster.png",min: 57140, max: 71424,  maxReplayKeys: 2 },
+  { key: "scholar",    name: "Scholar",    image: "Scholar.png",    min: 71425, max: 85709,  maxReplayKeys: 3 },
+  { key: "legend",     name: "Legend",     image: "Legend.png",     min: 85710, max: 100000, maxReplayKeys: 5 }
+];
+
+function getRankInfo(points) {
+  const clamped = Math.max(0, Math.min(KWIZ_CONFIG.maxPoints, Number(points) || 0));
+  const tierIndex = KWIZ_RANKS.findIndex((r, idx) =>
+    idx === KWIZ_RANKS.length - 1 ? clamped >= r.min : clamped >= r.min && clamped <= r.max
+  );
+  const rank = KWIZ_RANKS[tierIndex >= 0 ? tierIndex : 0];
+  const span = Math.max(1, rank.max - rank.min + 1);
+  const progressInTier = Math.min(span - 0.0001, Math.max(0, clamped - rank.min));
+  const stars = Math.min(5, Math.max(1, Math.floor((progressInTier / span) * 5) + 1));
+
+  const qualifiesForKeys = clamped >= KWIZ_CONFIG.replayKeyMinPoints;
+  const maxKeysForRank = qualifiesForKeys ? rank.maxReplayKeys : 0;
+
+  return {
+    ...rank,
+    tierIndex: tierIndex >= 0 ? tierIndex : 0,
+    points: clamped,
+    stars,
+    qualifiesForKeys,
+    maxKeysForRank
+  };
+}
+
+function getAvailableReplayKeys(userRecord) {
+  const pts = Number(userRecord?.stats?.totalScore) || 0;
+  const info = getRankInfo(pts);
+  if (!info.qualifiesForKeys || info.maxKeysForRank <= 0) return 0;
+  const usedKeys = Number(userRecord?.replayKeysUsed) || 0;
+  return Math.max(0, info.maxKeysForRank - usedKeys);
+}
+
+function hasCompletedQuiz(userRecord, quizId) {
+  const hist = Array.isArray(userRecord?.history) ? userRecord.history : [];
+  return hist.some((h) => h.quizId === quizId);
+}
+
+function renderStarsText(stars) {
+  const count = Math.min(5, Math.max(1, Number(stars) || 1));
+  return "★".repeat(count) + "☆".repeat(5 - count);
+}
 
 async function readBin(binId) {
   const res = await fetch(`${KWIZ_CONFIG.baseUrl}/${binId}/latest`, {
@@ -53,7 +107,9 @@ function setSessionUser(userObj) {
     role: userObj.role || (userObj.username === "admin" ? "admin" : "user"),
     avatar: userObj.avatar || "🧠",
     bio: userObj.bio || "",
+    replayKeysUsed: Number(userObj.replayKeysUsed) || 0,
     stats: userObj.stats || { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 },
+    history: Array.isArray(userObj.history) ? userObj.history : [],
     loggedInAt: new Date().toISOString()
   };
   localStorage.setItem(KWIZ_CONFIG.sessionKey, JSON.stringify(safeSession));
@@ -73,7 +129,6 @@ function clearSessionUser() {
   localStorage.removeItem(KWIZ_CONFIG.sessionKey);
 }
 
-// Redirects straight to auth.html if no user is logged in
 function requireAuth() {
   const user = getSessionUser();
   if (!user || !user.id) {
@@ -92,7 +147,6 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-// Applies event branding if active & not expired; resets if expired
 async function applyEventBranding(logoImgElement, existingQuizzesBinData = null) {
   const fallbackLogo = KWIZ_CONFIG.defaultLogo;
   if (logoImgElement) {
@@ -137,7 +191,6 @@ async function applyEventBranding(logoImgElement, existingQuizzesBinData = null)
   }
 }
 
-// Renders the shared mobile bottom navigation bar
 function renderBottomNav(activePage, user, eventIconUrl = "") {
   const nav = document.getElementById("bottomNav");
   if (!nav) return;
