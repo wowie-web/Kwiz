@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kwiz — Sign Up or Log In</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="auth-wrapper">
+    <section class="auth-card" aria-label="Kwiz Authentication">
+      <header class="brand-header">
+        <div class="brand-logo-frame">
+          <img id="brandLogo" src="logo.png" alt="Kwiz Logo" />
+        </div>
+        <h1 class="brand-title">K<span>wiz</span></h1>
+        <p class="brand-subtitle">Solo quizzes, custom packs &amp; live contests</p>
+      </header>
+
+      <div class="mode-tabs" role="tablist" aria-label="Authentication mode">
+        <button type="button" id="tabLogin" class="mode-tab active" role="tab" aria-selected="true">
+          Log In
+        </button>
+        <button type="button" id="tabSignup" class="mode-tab" role="tab" aria-selected="false">
+          Sign Up
+        </button>
+      </div>
+
+      <div id="statusBanner" class="status-banner" role="alert" aria-live="polite"></div>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" class="auth-form active" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="loginIdentifier">Full Name or User Name</label>
+          <input
+            id="loginIdentifier"
+            name="identifier"
+            type="text"
+            class="input-control"
+            placeholder="Enter your full name or username"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="loginPassword">Password</label>
+          <div class="input-box">
+            <input
+              id="loginPassword"
+              name="password"
+              type="password"
+              class="input-control has-toggle"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              data-target="loginPassword"
+              aria-label="Show or hide password"
+              aria-pressed="false"
+            >
+              <svg class="icon-eye-open" viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="submit-btn">Log In to Kwiz</button>
+      </form>
+
+      <!-- SIGN UP FORM -->
+      <form id="signupForm" class="auth-form" novalidate>
+        <div class="field-group">
+          <label class="field-label" for="signupFullName">Full Name</label>
+          <input
+            id="signupFullName"
+            name="fullName"
+            type="text"
+            class="input-control"
+            placeholder="e.g. Alex Rivera"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="signupUsername">User Name</label>
+          <input
+            id="signupUsername"
+            name="username"
+            type="text"
+            class="input-control"
+            placeholder="e.g. alex_kwiz"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="signupBirthdate">Birthdate</label>
+          <input
+            id="signupBirthdate"
+            name="birthdate"
+            type="date"
+            class="input-control"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="signupPassword">Password</label>
+          <div class="input-box">
+            <input
+              id="signupPassword"
+              name="password"
+              type="password"
+              class="input-control has-toggle"
+              placeholder="At least 6 characters"
+              autocomplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              data-target="signupPassword"
+              aria-label="Show or hide password"
+              aria-pressed="false"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="signupConfirmPassword">Confirm Password</label>
+          <div class="input-box">
+            <input
+              id="signupConfirmPassword"
+              name="confirmPassword"
+              type="password"
+              class="input-control has-toggle"
+              placeholder="Re-enter your password"
+              autocomplete="new-password"
+              required
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              data-target="signupConfirmPassword"
+              aria-label="Show or hide confirm password"
+              aria-pressed="false"
+            >
+              <svg viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" id="signupSubmitBtn" class="submit-btn">Create Account</button>
+      </form>
+
+      <p class="helper-note">Synced directly with Kwiz cloud storage</p>
+    </section>
+  </main>
+
+  <script src="shared.js"></script>
+  <script>
+    const tabLogin = document.getElementById("tabLogin");
+    const tabSignup = document.getElementById("tabSignup");
+    const loginForm = document.getElementById("loginForm");
+    const signupForm = document.getElementById("signupForm");
+    const statusBanner = document.getElementById("statusBanner");
+    const brandLogo = document.getElementById("brandLogo");
+
+    const EYE_OPEN_SVG = `
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    `;
+
+    const EYE_CLOSED_SVG = `
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+    `;
+
+    function showStatus(message, type = "info") {
+      statusBanner.textContent = message;
+      statusBanner.className = `status-banner show ${type}`;
+    }
+
+    function hideStatus() {
+      statusBanner.textContent = "";
+      statusBanner.className = "status-banner";
+    }
+
+    function switchTab(mode) {
+      hideStatus();
+      const isLogin = mode === "login";
+      tabLogin.classList.toggle("active", isLogin);
+      tabLogin.setAttribute("aria-selected", String(isLogin));
+      tabSignup.classList.toggle("active", !isLogin);
+      tabSignup.setAttribute("aria-selected", String(!isLogin));
+
+      loginForm.classList.toggle("active", isLogin);
+      signupForm.classList.toggle("active", !isLogin);
+    }
+
+    tabLogin.addEventListener("click", () => switchTab("login"));
+    tabSignup.addEventListener("click", () => switchTab("signup"));
+
+    // Eye toggle buttons for show / hide password
+    document.querySelectorAll(".eye-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const input = document.getElementById(btn.dataset.target);
+        if (!input) return;
+        const willShow = input.type === "password";
+        input.type = willShow ? "text" : "password";
+        btn.setAttribute("aria-pressed", String(willShow));
+        btn.innerHTML = `<svg viewBox="0 0 24 24">${willShow ? EYE_CLOSED_SVG : EYE_OPEN_SVG}</svg>`;
+      });
+    });
+
+    // LOGIN HANDLER
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideStatus();
+
+      const identifier = document.getElementById("loginIdentifier").value.trim();
+      const password = document.getElementById("loginPassword").value;
+
+      if (!identifier || !password) {
+        showStatus("Please enter your full name or username and password.", "error");
+        return;
+      }
+
+      const btn = document.getElementById("loginSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Checking credentials...";
+
+      try {
+        const binData = await readBin(KWIZ_CONFIG.usersBinId);
+        const users = Array.isArray(binData.users) ? binData.users : [];
+        const needle = identifier.toLowerCase();
+
+        const matchedUser = users.find((u) => {
+          const uname = (u.username || "").trim().toLowerCase();
+          const fname = (u.fullName || "").trim().toLowerCase();
+          return uname === needle || (fname && fname === needle);
+        });
+
+        if (!matchedUser) {
+          showStatus("No account found with that full name or username.", "error");
+          btn.disabled = false;
+          btn.textContent = "Log In to Kwiz";
+          return;
+        }
+
+        const passwordHash = await sha256Hex(password);
+        if (matchedUser.passwordHash !== passwordHash) {
+          showStatus("Incorrect password. Please try again.", "error");
+          btn.disabled = false;
+          btn.textContent = "Log In to Kwiz";
+          return;
+        }
+
+        setSessionUser(matchedUser);
+        showStatus(`Welcome back, ${matchedUser.fullName || matchedUser.username}! Redirecting...`, "success");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 550);
+      } catch (err) {
+        showStatus(`Connection error: ${err.message}`, "error");
+        btn.disabled = false;
+        btn.textContent = "Log In to Kwiz";
+      }
+    });
+
+    // SIGN UP HANDLER
+    signupForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideStatus();
+
+      const fullName = document.getElementById("signupFullName").value.trim();
+      const username = document.getElementById("signupUsername").value.trim();
+      const birthdate = document.getElementById("signupBirthdate").value;
+      const password = document.getElementById("signupPassword").value;
+      const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+      if (!fullName || !username || !birthdate || !password || !confirmPassword) {
+        showStatus("Please fill out all sign-up fields.", "error");
+        return;
+      }
+
+      if (!/^[a-zA-Z0-9._-]{3,24}$/.test(username)) {
+        showStatus("Username must be 3–24 characters (letters, numbers, ., _, -).", "error");
+        return;
+      }
+
+      if (password.length < 6) {
+        showStatus("Password must be at least 6 characters long.", "error");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showStatus("Passwords do not match.", "error");
+        return;
+      }
+
+      const btn = document.getElementById("signupSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Saving to Kwiz...";
+
+      try {
+        // Fresh GET right before writing so we don't overwrite concurrent changes
+        const binData = await readBin(KWIZ_CONFIG.usersBinId);
+        const users = Array.isArray(binData.users) ? binData.users : [];
+
+        const usernameTaken = users.some(
+          (u) => (u.username || "").trim().toLowerCase() === username.toLowerCase()
+        );
+        if (usernameTaken) {
+          showStatus("That username is already taken. Try another one.", "error");
+          btn.disabled = false;
+          btn.textContent = "Create Account";
+          return;
+        }
+
+        const passwordHash = await sha256Hex(password);
+        const newUser = {
+          id: `usr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          fullName,
+          username,
+          birthdate,
+          passwordHash,
+          role: username.toLowerCase() === "admin" ? "admin" : "user",
+          avatar: "🧠",
+          bio: "",
+          createdAt: new Date().toISOString(),
+          stats: {
+            quizzesPlayed: 0,
+            quizzesCreated: 0,
+            totalScore: 0
+          },
+          history: []
+        };
+
+        users.push(newUser);
+        const updatedPayload = {
+          ...binData,
+          users
+        };
+
+        await writeBin(KWIZ_CONFIG.usersBinId, updatedPayload);
+        setSessionUser(newUser);
+
+        showStatus("Account created and synced! Taking you to Kwiz...", "success");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 650);
+      } catch (err) {
+        showStatus(`Could not save account: ${err.message}`, "error");
+        btn.disabled = false;
+        btn.textContent = "Create Account";
+      }
+    });
+
+    // Apply active event theme/logo if one is running
+    applyEventBranding(brandLogo);
+  </script>
+</body>
+</html>
