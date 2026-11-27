@@ -6,6 +6,7 @@
   <title>Kwiz — Home</title>
   <link rel="icon" type="image/png" href="logo.png" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="shared.js"></script>
   <script>
     const CURRENT_USER = requireAuth();
@@ -38,7 +39,10 @@
           </div>
           <div class="quiz-meta">
             <span id="userRankPoints">0 / 100,000 pts</span>
-            <span>• 🔑 <strong id="userReplayKeys">0</strong> Replay Keys</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;">
+              • <i data-lucide="key-round" style="width:13px; height:13px; color:var(--accent-warm);"></i>
+              <strong id="userReplayKeys">0</strong> Replay Keys
+            </span>
           </div>
         </div>
       </div>
@@ -47,10 +51,7 @@
     <!-- SMART SEARCH (Quizzes + Users) -->
     <section class="search-wrapper" aria-label="Smart Search">
       <div class="search-input-wrap">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
+        <i data-lucide="search" class="search-icon"></i>
         <input
           type="search"
           id="smartSearchInput"
@@ -58,7 +59,9 @@
           placeholder="Search quizzes, categories, or users..."
           autocomplete="off"
         />
-        <button type="button" id="searchClearBtn" class="search-clear" aria-label="Clear search">✕</button>
+        <button type="button" id="searchClearBtn" class="search-clear" aria-label="Clear search">
+          <i data-lucide="x" style="width:14px; height:14px;"></i>
+        </button>
       </div>
       <div id="searchResultsPanel" class="search-results-panel" role="listbox"></div>
     </section>
@@ -76,7 +79,10 @@
     <!-- KWIZ TEAM SLIDESHOW (Tap image or slide to go to quiz) -->
     <section class="section-block" aria-label="Featured by Kwiz Team">
       <div class="section-head">
-        <h2 class="section-title">⚡ Kwiz Team Spotlight</h2>
+        <h2 class="section-title">
+          <i data-lucide="zap" style="width:18px; height:18px; color:var(--accent-warm);"></i>
+          Kwiz Team Spotlight
+        </h2>
         <span class="section-meta" id="slideshowCounter">Tap image to open</span>
       </div>
       <div class="slideshow-container" id="slideshowContainer">
@@ -90,8 +96,12 @@
           </div>
         </div>
         <div class="slideshow-controls" id="slideshowArrows" style="display: none;">
-          <button type="button" class="slide-arrow" id="prevSlideBtn" aria-label="Previous slide">‹</button>
-          <button type="button" class="slide-arrow" id="nextSlideBtn" aria-label="Next slide">›</button>
+          <button type="button" class="slide-arrow" id="prevSlideBtn" aria-label="Previous slide">
+            <i data-lucide="chevron-left" style="width:16px; height:16px;"></i>
+          </button>
+          <button type="button" class="slide-arrow" id="nextSlideBtn" aria-label="Next slide">
+            <i data-lucide="chevron-right" style="width:16px; height:16px;"></i>
+          </button>
         </div>
         <div class="slideshow-dots" id="slideshowDots"></div>
       </div>
@@ -100,7 +110,10 @@
     <!-- USER HISTORY -->
     <section class="section-block" aria-label="Your History">
       <div class="section-head">
-        <h2 class="section-title">🕒 Your History</h2>
+        <h2 class="section-title">
+          <i data-lucide="history" style="width:18px; height:18px; color:var(--accent-cyan);"></i>
+          Your History
+        </h2>
         <span class="section-meta" id="historyCountLabel">0 played</span>
       </div>
       <div id="historyContainer" class="h-scroll">
@@ -111,7 +124,10 @@
     <!-- TRENDING QUIZZES -->
     <section class="section-block" aria-label="Trending Quizzes">
       <div class="section-head">
-        <h2 class="section-title">📈 Trending</h2>
+        <h2 class="section-title">
+          <i data-lucide="trending-up" style="width:18px; height:18px; color:var(--success);"></i>
+          Trending
+        </h2>
         <span class="section-meta">Most played</span>
       </div>
       <div id="trendingList" class="quiz-list">
@@ -122,7 +138,10 @@
     <!-- HOTTEST QUIZZES -->
     <section class="section-block" aria-label="Hottest Quizzes">
       <div class="section-head">
-        <h2 class="section-title">🔥 Hottest</h2>
+        <h2 class="section-title">
+          <i data-lucide="flame" style="width:18px; height:18px; color:var(--danger);"></i>
+          Hottest
+        </h2>
         <span class="section-meta">Most liked</span>
       </div>
       <div id="hottestList" class="quiz-list">
@@ -135,7 +154,9 @@
   <div id="quizPlayerModal" class="player-modal" role="dialog" aria-modal="true" aria-label="Solo Quiz Player">
     <div class="player-inner">
       <div class="player-top">
-        <button type="button" id="closePlayerBtn" class="btn-ghost">✕ Exit</button>
+        <button type="button" id="closePlayerBtn" class="btn-ghost" style="display:inline-flex; align-items:center; gap:5px;">
+          <i data-lucide="x" style="width:15px; height:15px;"></i> Exit
+        </button>
         <div id="playerProgressText" style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
           1 / 1
         </div>
@@ -166,18 +187,14 @@
     let currentScore = 0;
     let correctCount = 0;
 
-    function renderAvatarContent(avatarVal) {
-      if (!avatarVal) return "🧠";
-      if (/^https?:\/\//i.test(avatarVal)) {
-        return `<img src="${escapeHtml(avatarVal)}" alt="Avatar" onerror="this.parentElement.textContent='🧠'" />`;
-      }
-      return escapeHtml(avatarVal);
+    function renderEmojiAvatar(avatarVal) {
+      return escapeHtml(normalizeEmojiAvatar(avatarVal));
     }
 
     function initTopUserAndRank(userObj = currentUserRecord) {
       if (!userObj) return;
       document.getElementById("topUserName").textContent = userObj.username || userObj.fullName;
-      document.getElementById("topUserAvatar").innerHTML = renderAvatarContent(userObj.avatar);
+      document.getElementById("topUserAvatar").textContent = normalizeEmojiAvatar(userObj.avatar);
 
       const pts = Number(userObj.stats?.totalScore) || 0;
       const rankInfo = getRankInfo(pts);
@@ -195,10 +212,11 @@
       document.getElementById("userRankPoints").textContent =
         `${pts.toLocaleString()} / ${KWIZ_CONFIG.maxPoints.toLocaleString()} pts`;
       document.getElementById("userReplayKeys").textContent = String(keysLeft);
+      refreshLucideIcons();
     }
 
     function isKwizTeamQuiz(quiz) {
-      const author = (quiz.authorName || "").trim().toLowerCase();
+      const author = String(quiz.authorName || "").trim().toLowerCase();
       return quiz.isOfficial === true || author === "kwiz team" || author === "admin";
     }
 
@@ -212,7 +230,7 @@
       return quiz.likedBy.includes(currentUserRecord.id);
     }
 
-    // ==================== SLIDESHOW (Image links directly to quiz) ====================
+    // ==================== SLIDESHOW ====================
     function renderSlideshow(quizzes) {
       const track = document.getElementById("slidesTrack");
       const dots = document.getElementById("slideshowDots");
@@ -234,14 +252,15 @@
         dots.innerHTML = "";
         arrows.style.display = "none";
         counter.textContent = "0 Official";
+        refreshLucideIcons();
         return;
       }
 
       counter.textContent = "Tap image to open";
       track.innerHTML = featured
         .map((q) => {
-          const imgUrl = (q.coverImage || q.imageUrl || q.image || "").trim();
-          const hasImg = /^https?:\/\//i.test(imgUrl) || /\.(png|jpe?g|webp|gif)$/i.test(imgUrl);
+          const imgUrl = String(q.coverImage || q.imageUrl || q.image || "").trim();
+          const hasImg = Boolean(imgUrl);
           const done = hasCompletedQuiz(currentUserRecord, q.id);
 
           return `
@@ -263,16 +282,16 @@
                   : ""
               }
               <div class="slide-content">
-                <span class="official-pill">⚡ ${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "Mix")}</span>
+                <span class="official-pill">${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "Mix")}</span>
                 <h3 class="slide-title">${escapeHtml(q.title)}</h3>
                 <p class="slide-desc">${escapeHtml(q.description || `${(q.questions || []).length} questions`)}</p>
                 <div class="slide-footer">
-                  <span class="slide-stats">▶ ${Number(q.plays) || 0} plays • ♥ ${getLikeCount(q)}</span>
+                  <span class="slide-stats">${Number(q.plays) || 0} plays • ${getLikeCount(q)} likes</span>
                   <button
                     type="button"
                     class="btn-play"
                     onclick="event.stopPropagation(); openQuizFromSlide('${escapeHtml(q.id)}')"
-                  >${done ? "Completed / Key" : "Open Quiz"}</button>
+                  >${done ? "Use Key" : "Open Quiz"}</button>
                 </div>
               </div>
             </article>
@@ -310,6 +329,8 @@
         e.stopPropagation();
         goToSlide((currentSlideIndex + 1) % featured.length, featured.length);
       };
+
+      refreshLucideIcons();
     }
 
     function openQuizFromSlide(quizId) {
@@ -362,7 +383,9 @@
                 <span class="history-score">${escapeHtml(item.scoreLabel || `${item.score || 0} pts`)}</span>
                 ${
                   exists
-                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem;" onclick="startQuiz('${escapeHtml(item.quizId)}')">🔑 Key</button>`
+                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px;" onclick="startQuiz('${escapeHtml(item.quizId)}')">
+                        <i data-lucide="key-round" style="width:12px; height:12px;"></i> Key
+                       </button>`
                     : `<span style="font-size:0.72rem; color:var(--text-muted);">Archived</span>`
                 }
               </div>
@@ -370,12 +393,14 @@
           `;
         })
         .join("");
+
+      refreshLucideIcons();
     }
 
     // ==================== TRENDING & HOTTEST ====================
     function buildQuizCardHtml(quiz, rankBadge = "") {
-      const imgUrl = (quiz.coverImage || quiz.imageUrl || quiz.image || "").trim();
-      const hasImg = /^https?:\/\//i.test(imgUrl) || /\.(png|jpe?g|webp|gif)$/i.test(imgUrl);
+      const imgUrl = String(quiz.coverImage || quiz.imageUrl || quiz.image || "").trim();
+      const hasImg = Boolean(imgUrl);
       const liked = hasUserLiked(quiz);
       const likes = getLikeCount(quiz);
       const plays = Number(quiz.plays) || 0;
@@ -398,16 +423,16 @@
             <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
             <div class="quiz-meta">
               <span>by <a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Kwiz Team")}</a></span>
-              <span>• ▶ ${plays}</span>
+              <span>• ${plays} plays</span>
               <span>• ${(quiz.questions || []).length} Qs</span>
             </div>
           </div>
           <div class="quiz-actions">
             <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(quiz.id)}')">
-              ${done ? "🔑 Replay" : "Play"}
+              ${done ? "Key Replay" : "Play"}
             </button>
             <button type="button" class="btn-like ${liked ? "liked" : ""}" onclick="toggleLike('${escapeHtml(quiz.id)}')">
-              ${liked ? "♥" : "♡"} ${likes}
+              <i data-lucide="heart" style="width:13px; height:13px;"></i> ${likes}
             </button>
           </div>
         </article>
@@ -437,8 +462,10 @@
         .join("");
 
       hottestContainer.innerHTML = hottest
-        .map((q) => buildQuizCardHtml(q, "🔥"))
+        .map((q) => buildQuizCardHtml(q, "★"))
         .join("");
+
+      refreshLucideIcons();
     }
 
     async function toggleLike(quizId) {
@@ -520,7 +547,7 @@
               return `
                 <a class="search-item" href="profile.html?user=${encodeURIComponent(u.id)}">
                   <div class="search-item-main">
-                    <div class="search-item-badge">${renderAvatarContent(u.avatar)}</div>
+                    <div class="search-item-badge">${renderEmojiAvatar(u.avatar)}</div>
                     <div>
                       <div class="search-item-title">${escapeHtml(u.fullName || u.username)}</div>
                       <div class="search-item-sub">@${escapeHtml(u.username)} • ${escapeHtml(rInfo.name)} (${u.stats?.totalScore || 0} pts)</div>
@@ -541,7 +568,7 @@
               (q) => `
               <div class="search-item" onclick="startQuiz('${escapeHtml(q.id)}')">
                 <div class="search-item-main">
-                  <div class="search-item-badge">📝</div>
+                  <div class="search-item-badge"><i data-lucide="file-question" style="width:17px; height:17px; color:var(--accent-cyan);"></i></div>
                   <div>
                     <div class="search-item-title">${escapeHtml(q.title)}</div>
                     <div class="search-item-sub">${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Kwiz Team")}</div>
@@ -556,6 +583,7 @@
 
         panel.innerHTML = html;
         panel.classList.add("open");
+        refreshLucideIcons();
       }
 
       input.addEventListener("input", runSearch);
@@ -828,9 +856,10 @@
     // ==================== BOOTSTRAP HOME PAGE ====================
     async function bootHome() {
       if (!CURRENT_USER) return;
-      initTopUserAndRank(currentUserRecord);
       renderBottomNav("home", currentUserRecord);
+      initTopUserAndRank(currentUserRecord);
       setupSmartSearch();
+      refreshLucideIcons();
 
       try {
         const [quizzesData, usersData] = await Promise.all([
@@ -873,6 +902,7 @@
 
         renderSlideshow(allQuizzes);
         renderTrendingAndHottest();
+        refreshLucideIcons();
       } catch (err) {
         document.getElementById("trendingList").innerHTML =
           `<div class="empty-box">Could not load feed: ${escapeHtml(err.message)}</div>`;
