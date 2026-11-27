@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kwiz — Home</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="shared.js"></script>
+  <script>
+    // Immediate auth gate before page renders
+    const CURRENT_USER = requireAuth();
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- TOP HEADER -->
+    <header class="top-bar">
+      <a href="index.html" class="top-brand">
+        <img id="topBrandLogo" src="logo.png" alt="Kwiz" />
+        <div class="top-brand-text">K<span>wiz</span></div>
+      </a>
+      <a href="profile.html" class="user-pill" id="topUserPill">
+        <span class="user-pill-avatar" id="topUserAvatar">🧠</span>
+        <span id="topUserName">Player</span>
+      </a>
+    </header>
+
+    <!-- SMART SEARCH (Quizzes + Users) -->
+    <section class="search-wrapper" aria-label="Smart Search">
+      <div class="search-input-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="search"
+          id="smartSearchInput"
+          class="search-input"
+          placeholder="Search quizzes, categories, or users..."
+          autocomplete="off"
+        />
+        <button type="button" id="searchClearBtn" class="search-clear" aria-label="Clear search">✕</button>
+      </div>
+      <div id="searchResultsPanel" class="search-results-panel" role="listbox"></div>
+    </section>
+
+    <!-- LIVE EVENT BANNER (Shown automatically when an Admin Event is active) -->
+    <section id="eventBanner" class="event-banner" aria-label="Active Event">
+      <div>
+        <span class="event-tag">Live Event</span>
+        <h2 id="eventTitle" style="font-size: 1rem; font-weight: 800;">Special Contest</h2>
+        <p id="eventPrize" style="font-size: 0.8rem; color: var(--text-secondary);"></p>
+      </div>
+      <button type="button" id="eventPlayBtn" class="btn-play" style="display: none;">Join</button>
+    </section>
+
+    <!-- KWIZ TEAM SLIDESHOW -->
+    <section class="section-block" aria-label="Featured by Kwiz Team">
+      <div class="section-head">
+        <h2 class="section-title">⚡ Kwiz Team Spotlight</h2>
+        <span class="section-meta" id="slideshowCounter">Official Packs</span>
+      </div>
+      <div class="slideshow-container" id="slideshowContainer">
+        <div class="slides-track" id="slidesTrack">
+          <div class="slide-card">
+            <div class="slide-content">
+              <span class="official-pill">Kwiz Team</span>
+              <h3 class="slide-title">Loading featured quizzes...</h3>
+              <p class="slide-desc">Syncing official packs from Kwiz cloud.</p>
+            </div>
+          </div>
+        </div>
+        <div class="slideshow-controls" id="slideshowArrows" style="display: none;">
+          <button type="button" class="slide-arrow" id="prevSlideBtn" aria-label="Previous slide">‹</button>
+          <button type="button" class="slide-arrow" id="nextSlideBtn" aria-label="Next slide">›</button>
+        </div>
+        <div class="slideshow-dots" id="slideshowDots"></div>
+      </div>
+    </section>
+
+    <!-- USER HISTORY -->
+    <section class="section-block" aria-label="Your History">
+      <div class="section-head">
+        <h2 class="section-title">🕒 Your History</h2>
+        <span class="section-meta" id="historyCountLabel">0 played</span>
+      </div>
+      <div id="historyContainer" class="h-scroll">
+        <div class="empty-box" style="width: 100%;">Loading your recent runs...</div>
+      </div>
+    </section>
+
+    <!-- TRENDING QUIZZES (Based on plays/takes) -->
+    <section class="section-block" aria-label="Trending Quizzes">
+      <div class="section-head">
+        <h2 class="section-title">📈 Trending</h2>
+        <span class="section-meta">Most played</span>
+      </div>
+      <div id="trendingList" class="quiz-list">
+        <div class="empty-box">Loading trending quizzes...</div>
+      </div>
+    </section>
+
+    <!-- HOTTEST QUIZZES (Based on likes) -->
+    <section class="section-block" aria-label="Hottest Quizzes">
+      <div class="section-head">
+        <h2 class="section-title">🔥 Hottest</h2>
+        <span class="section-meta">Most liked</span>
+      </div>
+      <div id="hottestList" class="quiz-list">
+        <div class="empty-box">Loading hottest quizzes...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- SOLO QUIZ PLAYER MODAL -->
+  <div id="quizPlayerModal" class="player-modal" role="dialog" aria-modal="true" aria-label="Solo Quiz Player">
+    <div class="player-inner">
+      <div class="player-top">
+        <button type="button" id="closePlayerBtn" class="btn-ghost">✕ Exit</button>
+        <div id="playerProgressText" style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
+          1 / 1
+        </div>
+        <div id="playerScoreText" style="font-size: 0.85rem; font-weight: 800; color: var(--accent-warm);">
+          0 pts
+        </div>
+      </div>
+      <div class="progress-track">
+        <div id="playerProgressFill" class="progress-fill"></div>
+      </div>
+      <div id="playerStage" class="question-box"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav id="bottomNav" class="bottom-nav" aria-label="Primary Navigation"></nav>
+
+  <script>
+    let allQuizzes = [];
+    let allUsers = [];
+    let quizzesBinCache = null;
+    let usersBinCache = null;
+    let currentSlideIndex = 0;
+    let slideTimer = null;
+
+    // Active solo game state
+    let activeQuiz = null;
+    let qIndex = 0;
+    let currentScore = 0;
+    let correctCount = 0;
+
+    function renderAvatarContent(avatarVal) {
+      if (!avatarVal) return "🧠";
+      if (/^https?:\/\//i.test(avatarVal)) {
+        return `<img src="${escapeHtml(avatarVal)}" alt="Avatar" onerror="this.parentElement.textContent='🧠'" />`;
+      }
+      return escapeHtml(avatarVal);
+    }
+
+    function initTopUser() {
+      if (!CURRENT_USER) return;
+      document.getElementById("topUserName").textContent = CURRENT_USER.username || CURRENT_USER.fullName;
+      document.getElementById("topUserAvatar").innerHTML = renderAvatarContent(CURRENT_USER.avatar);
+    }
+
+    function isKwizTeamQuiz(quiz) {
+      const author = (quiz.authorName || "").trim().toLowerCase();
+      return quiz.isOfficial === true || author === "kwiz team" || author === "admin";
+    }
+
+    function getLikeCount(quiz) {
+      if (Array.isArray(quiz.likedBy)) return quiz.likedBy.length;
+      return Number(quiz.likes) || 0;
+    }
+
+    function hasUserLiked(quiz) {
+      if (!CURRENT_USER || !Array.isArray(quiz.likedBy)) return false;
+      return quiz.likedBy.includes(CURRENT_USER.id);
+    }
+
+    // ==================== SLIDESHOW ====================
+    function renderSlideshow(quizzes) {
+      const track = document.getElementById("slidesTrack");
+      const dots = document.getElementById("slideshowDots");
+      const arrows = document.getElementById("slideshowArrows");
+      const counter = document.getElementById("slideshowCounter");
+
+      let featured = quizzes.filter(isKwizTeamQuiz);
+      if (featured.length === 0) {
+        featured = quizzes.slice(0, 4);
+      }
+
+      if (featured.length === 0) {
+        track.innerHTML = `
+          <div class="slide-card">
+            <div class="slide-content">
+              <span class="official-pill">Kwiz Team</span>
+              <h3 class="slide-title">No official quizzes yet</h3>
+              <p class="slide-desc">Create your first quiz in the Create tab or Admin panel.</p>
+            </div>
+          </div>
+        `;
+        dots.innerHTML = "";
+        arrows.style.display = "none";
+        return;
+      }
+
+      counter.textContent = `${featured.length} Featured`;
+      track.innerHTML = featured
+        .map((q) => {
+          const imgUrl = (q.coverImage || q.imageUrl || q.image || "").trim();
+          const hasImg = /^https?:\/\//i.test(imgUrl);
+          return `
+            <article class="slide-card ${hasImg ? "has-image" : ""}">
+              ${hasImg ? `<img class="slide-bg-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(q.title)}" onerror="this.remove()" />` : ""}
+              <div class="slide-content">
+                <span class="official-pill">⚡ ${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "Mix")}</span>
+                <h3 class="slide-title">${escapeHtml(q.title)}</h3>
+                <p class="slide-desc">${escapeHtml(q.description || `${(q.questions || []).length} mixed questions`)}</p>
+                <div class="slide-footer">
+                  <span class="slide-stats">▶ ${Number(q.plays) || 0} plays • ♥ ${getLikeCount(q)}</span>
+                  <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(q.id)}')">Play Now</button>
+                </div>
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+
+      if (featured.length > 1) {
+        arrows.style.display = "flex";
+        dots.innerHTML = featured
+          .map(
+            (_, idx) =>
+              `<button type="button" class="slide-dot ${idx === 0 ? "active" : ""}" data-slide="${idx}" aria-label="Slide ${idx + 1}"></button>`
+          )
+          .join("");
+
+        dots.querySelectorAll(".slide-dot").forEach((dot) => {
+          dot.addEventListener("click", () => goToSlide(Number(dot.dataset.slide), featured.length));
+        });
+
+        startAutoSlide(featured.length);
+      } else {
+        arrows.style.display = "none";
+        dots.innerHTML = "";
+      }
+
+      document.getElementById("prevSlideBtn").onclick = () =>
+        goToSlide((currentSlideIndex - 1 + featured.length) % featured.length, featured.length);
+      document.getElementById("nextSlideBtn").onclick = () =>
+        goToSlide((currentSlideIndex + 1) % featured.length, featured.length);
+    }
+
+    function goToSlide(index, total) {
+      currentSlideIndex = index;
+      const track = document.getElementById("slidesTrack");
+      track.style.transform = `translateX(-${index * 100}%)`;
+      document.querySelectorAll(".slide-dot").forEach((d, i) => {
+        d.classList.toggle("active", i === index);
+      });
+      startAutoSlide(total);
+    }
+
+    function startAutoSlide(total) {
+      if (slideTimer) clearInterval(slideTimer);
+      if (total <= 1) return;
+      slideTimer = setInterval(() => {
+        const next = (currentSlideIndex + 1) % total;
+        goToSlide(next, total);
+      }, 4500);
+    }
+
+    // ==================== USER HISTORY ====================
+    function renderHistory(userRecord) {
+      const container = document.getElementById("historyContainer");
+      const label = document.getElementById("historyCountLabel");
+      const history = Array.isArray(userRecord?.history) ? [...userRecord.history].reverse() : [];
+
+      label.textContent = `${history.length} played`;
+
+      if (history.length === 0) {
+        container.innerHTML = `<div class="empty-box" style="width:100%;">You haven't played any quizzes yet. Pick one below!</div>`;
+        return;
+      }
+
+      container.innerHTML = history
+        .slice(0, 12)
+        .map((item) => {
+          const exists = allQuizzes.some((q) => q.id === item.quizId);
+          return `
+            <div class="history-card">
+              <div>
+                <div class="quiz-cat">${escapeHtml(item.category || "Quiz")}</div>
+                <div class="history-title">${escapeHtml(item.quizTitle || "Untitled Quiz")}</div>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                <span class="history-score">${escapeHtml(item.scoreLabel || `${item.score || 0} pts`)}</span>
+                ${
+                  exists
+                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem;" onclick="startQuiz('${escapeHtml(item.quizId)}')">Replay</button>`
+                    : `<span style="font-size:0.72rem; color:var(--text-muted);">Archived</span>`
+                }
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    // ==================== TRENDING & HOTTEST ====================
+    function buildQuizCardHtml(quiz, rankBadge = "") {
+      const imgUrl = (quiz.coverImage || quiz.imageUrl || quiz.image || "").trim();
+      const hasImg = /^https?:\/\//i.test(imgUrl);
+      const liked = hasUserLiked(quiz);
+      const likes = getLikeCount(quiz);
+      const plays = Number(quiz.plays) || 0;
+      const authorLink = quiz.authorId
+        ? `profile.html?user=${encodeURIComponent(quiz.authorId)}`
+        : "#";
+
+      return `
+        <article class="quiz-card">
+          <div class="quiz-thumb">
+            ${
+              hasImg
+                ? `<img src="${escapeHtml(imgUrl)}" alt="" onerror="this.remove()" />`
+                : escapeHtml(rankBadge || (quiz.title || "K").charAt(0).toUpperCase())
+            }
+          </div>
+          <div class="quiz-info">
+            <div class="quiz-cat">${escapeHtml(quiz.category || "General")}</div>
+            <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
+            <div class="quiz-meta">
+              <span>by <a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Creator")}</a></span>
+              <span>• ▶ ${plays}</span>
+              <span>• ${(quiz.questions || []).length} Qs</span>
+            </div>
+          </div>
+          <div class="quiz-actions">
+            <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(quiz.id)}')">Play</button>
+            <button type="button" class="btn-like ${liked ? "liked" : ""}" onclick="toggleLike('${escapeHtml(quiz.id)}')">
+              ${liked ? "♥" : "♡"} ${likes}
+            </button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderTrendingAndHottest() {
+      const trendingContainer = document.getElementById("trendingList");
+      const hottestContainer = document.getElementById("hottestList");
+
+      if (allQuizzes.length === 0) {
+        trendingContainer.innerHTML = `<div class="empty-box">No quizzes available yet. Tap Create below to make the first one!</div>`;
+        hottestContainer.innerHTML = `<div class="empty-box">No quizzes liked yet.</div>`;
+        return;
+      }
+
+      // Trending = sorted by plays descending
+      const trending = [...allQuizzes]
+        .sort((a, b) => (Number(b.plays) || 0) - (Number(a.plays) || 0))
+        .slice(0, 6);
+
+      // Hottest = sorted by likes descending
+      const hottest = [...allQuizzes]
+        .sort((a, b) => getLikeCount(b) - getLikeCount(a))
+        .slice(0, 6);
+
+      trendingContainer.innerHTML = trending
+        .map((q, idx) => buildQuizCardHtml(q, `#${idx + 1}`))
+        .join("");
+
+      hottestContainer.innerHTML = hottest
+        .map((q) => buildQuizCardHtml(q, "🔥"))
+        .join("");
+    }
+
+    async function toggleLike(quizId) {
+      if (!CURRENT_USER) return;
+      try {
+        const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        const quizzes = Array.isArray(freshBin.quizzes) ? freshBin.quizzes : [];
+        const target = quizzes.find((q) => q.id === quizId);
+        if (!target) return;
+
+        if (!Array.isArray(target.likedBy)) {
+          target.likedBy = [];
+        }
+
+        const idx = target.likedBy.indexOf(CURRENT_USER.id);
+        if (idx === -1) {
+          target.likedBy.push(CURRENT_USER.id);
+        } else {
+          target.likedBy.splice(idx, 1);
+        }
+        target.likes = target.likedBy.length;
+
+        freshBin.quizzes = quizzes;
+        await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
+
+        quizzesBinCache = freshBin;
+        allQuizzes = quizzes;
+        renderSlideshow(allQuizzes);
+        renderTrendingAndHottest();
+      } catch (err) {
+        alert("Could not update like: " + err.message);
+      }
+    }
+
+    // ==================== SMART SEARCH (Quizzes + Users) ====================
+    function setupSmartSearch() {
+      const input = document.getElementById("smartSearchInput");
+      const clearBtn = document.getElementById("searchClearBtn");
+      const panel = document.getElementById("searchResultsPanel");
+
+      function runSearch() {
+        const query = input.value.trim().toLowerCase();
+        clearBtn.classList.toggle("visible", query.length > 0);
+
+        if (!query) {
+          panel.classList.remove("open");
+          panel.innerHTML = "";
+          return;
+        }
+
+        const matchedQuizzes = allQuizzes.filter((q) => {
+          return (
+            (q.title || "").toLowerCase().includes(query) ||
+            (q.category || "").toLowerCase().includes(query) ||
+            (q.authorName || "").toLowerCase().includes(query)
+          );
+        });
+
+        const matchedUsers = allUsers.filter((u) => {
+          return (
+            (u.username || "").toLowerCase().includes(query) ||
+            (u.fullName || "").toLowerCase().includes(query)
+          );
+        });
+
+        if (matchedQuizzes.length === 0 && matchedUsers.length === 0) {
+          panel.innerHTML = `<div style="padding:14px; text-align:center; color:var(--text-secondary); font-size:0.86rem;">No quizzes or players matched "${escapeHtml(input.value.trim())}"</div>`;
+          panel.classList.add("open");
+          return;
+        }
+
+        let html = "";
+
+        if (matchedUsers.length > 0) {
+          html += `<div class="search-group-title">Players &amp; Creators</div>`;
+          html += matchedUsers
+            .slice(0, 5)
+            .map(
+              (u) => `
+              <a class="search-item" href="profile.html?user=${encodeURIComponent(u.id)}">
+                <div class="search-item-main">
+                  <div class="search-item-badge">${renderAvatarContent(u.avatar)}</div>
+                  <div>
+                    <div class="search-item-title">${escapeHtml(u.fullName || u.username)}</div>
+                    <div class="search-item-sub">@${escapeHtml(u.username)} • ${u.stats?.totalScore || 0} pts</div>
+                  </div>
+                </div>
+                <span style="font-size:0.75rem; color:var(--accent-warm); font-weight:700;">View →</span>
+              </a>
+            `
+            )
+            .join("");
+        }
+
+        if (matchedQuizzes.length > 0) {
+          html += `<div class="search-group-title">Quizzes</div>`;
+          html += matchedQuizzes
+            .slice(0, 6)
+            .map(
+              (q) => `
+              <div class="search-item" onclick="startQuiz('${escapeHtml(q.id)}')">
+                <div class="search-item-main">
+                  <div class="search-item-badge">📝</div>
+                  <div>
+                    <div class="search-item-title">${escapeHtml(q.title)}</div>
+                    <div class="search-item-sub">${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Creator")}</div>
+                  </div>
+                </div>
+                <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Play</span>
+              </div>
+            `
+            )
+            .join("");
+        }
+
+        panel.innerHTML = html;
+        panel.classList.add("open");
+      }
+
+      input.addEventListener("input", runSearch);
+      input.addEventListener("focus", () => {
+        if (input.value.trim()) runSearch();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        input.value = "";
+        runSearch();
+        input.focus();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".search-wrapper")) {
+          panel.classList.remove("open");
+        }
+      });
+    }
+
+    // ==================== SOLO QUIZ PLAYER ====================
+    function startQuiz(quizId) {
+      const quiz = allQuizzes.find((q) => q.id === quizId);
+      if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+        alert("This quiz has no questions yet.");
+        return;
+      }
+
+      document.getElementById("searchResultsPanel").classList.remove("open");
+      activeQuiz = quiz;
+      qIndex = 0;
+      currentScore = 0;
+      correctCount = 0;
+
+      document.getElementById("quizPlayerModal").classList.add("open");
+      renderQuestionStep();
+    }
+
+    function renderQuestionStep() {
+      const total = activeQuiz.questions.length;
+      const q = activeQuiz.questions[qIndex];
+
+      document.getElementById("playerProgressText").textContent = `${qIndex + 1} / ${total}`;
+      document.getElementById("playerScoreText").textContent = `${currentScore} pts`;
+      document.getElementById("playerProgressFill").style.width = `${((qIndex + 1) / total) * 100}%`;
+
+      const stage = document.getElementById("playerStage");
+      const typeLabel =
+        q.type === "tf" ? "True / False" : q.type === "text" ? "Type the Answer" : "Multiple Choice";
+
+      if (q.type === "text") {
+        stage.innerHTML = `
+          <div class="q-type-tag">${typeLabel}</div>
+          <div class="q-prompt">${escapeHtml(q.prompt)}</div>
+          <div class="field-group" style="margin-bottom:12px;">
+            <input type="text" id="textAnswerInput" class="input-control" placeholder="Type your answer here..." autocomplete="off" />
+          </div>
+          <button type="button" id="submitTextAnswerBtn" class="submit-btn">Submit Answer</button>
+          <div id="answerFeedback" style="margin-top:12px; font-size:0.88rem; font-weight:700;"></div>
+        `;
+
+        document.getElementById("submitTextAnswerBtn").onclick = () => {
+          const val = document.getElementById("textAnswerInput").value.trim();
+          if (!val) return;
+          const isRight = val.toLowerCase() === String(q.answer || "").trim().toLowerCase();
+          handleAnswered(isRight, q.answer);
+        };
+      } else {
+        const opts =
+          q.type === "tf" && (!q.options || q.options.length === 0)
+            ? ["True", "False"]
+            : q.options || [];
+
+        stage.innerHTML = `
+          <div class="q-type-tag">${typeLabel}</div>
+          <div class="q-prompt">${escapeHtml(q.prompt)}</div>
+          <div class="options-stack" id="optionsStack">
+            ${opts
+              .map(
+                (opt) =>
+                  `<button type="button" class="option-btn" data-opt="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`
+              )
+              .join("")}
+          </div>
+          <div id="answerFeedback" style="margin-top:12px; font-size:0.88rem; font-weight:700;"></div>
+        `;
+
+        stage.querySelectorAll(".option-btn").forEach((btn) => {
+          btn.onclick = () => {
+            const chosen = btn.dataset.opt;
+            const isRight = chosen.trim().toLowerCase() === String(q.answer || "").trim().toLowerCase();
+            stage.querySelectorAll(".option-btn").forEach((b) => {
+              b.disabled = true;
+              if (b.dataset.opt.trim().toLowerCase() === String(q.answer || "").trim().toLowerCase()) {
+                b.classList.add("correct");
+              } else if (b === btn && !isRight) {
+                b.classList.add("wrong");
+              }
+            });
+            handleAnswered(isRight, q.answer);
+          };
+        });
+      }
+    }
+
+    function handleAnswered(isRight, correctAnswer) {
+      if (isRight) {
+        currentScore += 100;
+        correctCount += 1;
+      }
+      document.getElementById("playerScoreText").textContent = `${currentScore} pts`;
+
+      const fb = document.getElementById("answerFeedback");
+      fb.style.color = isRight ? "var(--success)" : "var(--danger)";
+      fb.textContent = isRight
+        ? "Correct! +100 pts"
+        : `Not quite — Correct answer: ${correctAnswer}`;
+
+      const nextBtn = document.createElement("button");
+      nextBtn.type = "button";
+      nextBtn.className = "submit-btn";
+      nextBtn.style.marginTop = "14px";
+      nextBtn.textContent =
+        qIndex + 1 < activeQuiz.questions.length ? "Next Question →" : "Finish & Save Score";
+      nextBtn.onclick = () => {
+        if (qIndex + 1 < activeQuiz.questions.length) {
+          qIndex += 1;
+          renderQuestionStep();
+        } else {
+          finishQuizRun();
+        }
+      };
+      document.getElementById("playerStage").appendChild(nextBtn);
+    }
+
+    async function finishQuizRun() {
+      const stage = document.getElementById("playerStage");
+      const totalQs = activeQuiz.questions.length;
+      stage.innerHTML = `
+        <div style="text-align:center; padding:10px 0;">
+          <div style="font-size:2.4rem; margin-bottom:6px;">🏆</div>
+          <h2 style="font-size:1.3rem; font-weight:800; margin-bottom:4px;">Quiz Complete!</h2>
+          <p style="color:var(--text-secondary); margin-bottom:14px;">${escapeHtml(activeQuiz.title)}</p>
+          <div style="font-size:1.8rem; font-weight:800; color:var(--accent-warm); margin-bottom:4px;">${currentScore} pts</div>
+          <div style="font-size:0.9rem; color:var(--success); font-weight:700; margin-bottom:18px;">
+            ${correctCount} of ${totalQs} correct
+          </div>
+          <p id="syncSaveStatus" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px;">
+            Syncing result to your profile...
+          </p>
+          <button type="button" id="doneQuizBtn" class="submit-btn">Back to Home</button>
+        </div>
+      `;
+
+      document.getElementById("doneQuizBtn").onclick = () => {
+        document.getElementById("quizPlayerModal").classList.remove("open");
+      };
+
+      try {
+        // 1. Increment play count in kwiz_quizzes
+        const freshQuizzesBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        const qList = Array.isArray(freshQuizzesBin.quizzes) ? freshQuizzesBin.quizzes : [];
+        const qItem = qList.find((item) => item.id === activeQuiz.id);
+        if (qItem) {
+          qItem.plays = (Number(qItem.plays) || 0) + 1;
+          freshQuizzesBin.quizzes = qList;
+          await writeBin(KWIZ_CONFIG.quizzesBinId, freshQuizzesBin);
+          allQuizzes = qList;
+        }
+
+        // 2. Save run in user's history & update stats in kwiz_users
+        const freshUsersBin = await readBin(KWIZ_CONFIG.usersBinId);
+        const uList = Array.isArray(freshUsersBin.users) ? freshUsersBin.users : [];
+        const me = uList.find((u) => u.id === CURRENT_USER.id);
+        if (me) {
+          if (!me.stats) me.stats = { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 };
+          me.stats.quizzesPlayed = (Number(me.stats.quizzesPlayed) || 0) + 1;
+          me.stats.totalScore = (Number(me.stats.totalScore) || 0) + currentScore;
+
+          if (!Array.isArray(me.history)) me.history = [];
+          me.history.push({
+            quizId: activeQuiz.id,
+            quizTitle: activeQuiz.title,
+            category: activeQuiz.category || "Mix",
+            score: currentScore,
+            scoreLabel: `${correctCount}/${totalQs} (${currentScore} pts)`,
+            playedAt: new Date().toISOString()
+          });
+
+          freshUsersBin.users = uList;
+          await writeBin(KWIZ_CONFIG.usersBinId, freshUsersBin);
+          setSessionUser(me);
+          allUsers = uList;
+          renderHistory(me);
+        }
+
+        renderSlideshow(allQuizzes);
+        renderTrendingAndHottest();
+        const statusEl = document.getElementById("syncSaveStatus");
+        if (statusEl) statusEl.textContent = "Saved to your Kwiz profile!";
+      } catch (err) {
+        const statusEl = document.getElementById("syncSaveStatus");
+        if (statusEl) statusEl.textContent = "Played offline (sync failed: " + err.message + ")";
+      }
+    }
+
+    document.getElementById("closePlayerBtn").addEventListener("click", () => {
+      document.getElementById("quizPlayerModal").classList.remove("open");
+    });
+
+    // ==================== BOOTSTRAP HOME PAGE ====================
+    async function bootHome() {
+      if (!CURRENT_USER) return;
+      initTopUser();
+      renderBottomNav("home", CURRENT_USER);
+      setupSmartSearch();
+
+      try {
+        const [quizzesData, usersData] = await Promise.all([
+          readBin(KWIZ_CONFIG.quizzesBinId),
+          readBin(KWIZ_CONFIG.usersBinId)
+        ]);
+
+        quizzesBinCache = quizzesData;
+        usersBinCache = usersData;
+
+        allQuizzes = Array.isArray(quizzesData.quizzes) ? quizzesData.quizzes : [];
+        allUsers = Array.isArray(usersData.users) ? usersData.users : [];
+
+        const activeEv = await applyEventBranding(
+          document.getElementById("topBrandLogo"),
+          quizzesData
+        );
+
+        if (activeEv && activeEv.isActive) {
+          renderBottomNav("home", CURRENT_USER, activeEv.iconUrl || "");
+          const banner = document.getElementById("eventBanner");
+          banner.classList.add("active");
+          document.getElementById("eventTitle").textContent = activeEv.title || "Kwiz Live Event";
+          document.getElementById("eventPrize").textContent = activeEv.prize
+            ? `Prize: ${activeEv.prize}`
+            : "Compete in the featured event quiz!";
+          if (activeEv.contestQuizId) {
+            const playBtn = document.getElementById("eventPlayBtn");
+            playBtn.style.display = "inline-block";
+            playBtn.onclick = () => startQuiz(activeEv.contestQuizId);
+          }
+        }
+
+        const freshMe = allUsers.find((u) => u.id === CURRENT_USER.id);
+        if (freshMe) {
+          setSessionUser(freshMe);
+          initTopUser();
+          renderHistory(freshMe);
+        } else {
+          renderHistory(null);
+        }
+
+        renderSlideshow(allQuizzes);
+        renderTrendingAndHottest();
+      } catch (err) {
+        document.getElementById("trendingList").innerHTML =
+          `<div class="empty-box">Could not load feed: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    bootHome();
+  </script>
+</body>
+</html>
