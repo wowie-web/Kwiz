@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="style.css" />
   <script src="shared.js"></script>
   <script>
-    // Immediate auth gate before page renders
     const CURRENT_USER = requireAuth();
   </script>
 </head>
@@ -25,6 +24,25 @@
         <span id="topUserName">Player</span>
       </a>
     </header>
+
+    <!-- RANK & REPLAY KEY BAR -->
+    <section class="section-block" style="margin-bottom: 14px;">
+      <div class="quiz-card" style="padding: 10px 14px;">
+        <div class="quiz-thumb" style="width: 46px; height: 46px; background: var(--bg-elevated);">
+          <img id="userRankImg" src="Rookie.png" alt="Rank Badge" onerror="this.style.display='none'" />
+        </div>
+        <div class="quiz-info">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span id="userRankName" style="font-size:0.92rem; font-weight:800;">Rookie</span>
+            <span id="userRankStars" style="font-size:0.86rem; color:var(--accent-warm); letter-spacing:1px;">★☆☆☆☆</span>
+          </div>
+          <div class="quiz-meta">
+            <span id="userRankPoints">0 / 100,000 pts</span>
+            <span>• 🔑 <strong id="userReplayKeys">0</strong> Replay Keys</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- SMART SEARCH (Quizzes + Users) -->
     <section class="search-wrapper" aria-label="Smart Search">
@@ -45,7 +63,7 @@
       <div id="searchResultsPanel" class="search-results-panel" role="listbox"></div>
     </section>
 
-    <!-- LIVE EVENT BANNER (Shown automatically when an Admin Event is active) -->
+    <!-- LIVE EVENT BANNER -->
     <section id="eventBanner" class="event-banner" aria-label="Active Event">
       <div>
         <span class="event-tag">Live Event</span>
@@ -55,18 +73,18 @@
       <button type="button" id="eventPlayBtn" class="btn-play" style="display: none;">Join</button>
     </section>
 
-    <!-- KWIZ TEAM SLIDESHOW -->
+    <!-- KWIZ TEAM SLIDESHOW (Tap image or slide to go to quiz) -->
     <section class="section-block" aria-label="Featured by Kwiz Team">
       <div class="section-head">
         <h2 class="section-title">⚡ Kwiz Team Spotlight</h2>
-        <span class="section-meta" id="slideshowCounter">Official Packs</span>
+        <span class="section-meta" id="slideshowCounter">Tap image to open</span>
       </div>
       <div class="slideshow-container" id="slideshowContainer">
         <div class="slides-track" id="slidesTrack">
           <div class="slide-card">
             <div class="slide-content">
               <span class="official-pill">Kwiz Team</span>
-              <h3 class="slide-title">Loading featured quizzes...</h3>
+              <h3 class="slide-title">Loading Kwiz Team quizzes...</h3>
               <p class="slide-desc">Syncing official packs from Kwiz cloud.</p>
             </div>
           </div>
@@ -90,7 +108,7 @@
       </div>
     </section>
 
-    <!-- TRENDING QUIZZES (Based on plays/takes) -->
+    <!-- TRENDING QUIZZES -->
     <section class="section-block" aria-label="Trending Quizzes">
       <div class="section-head">
         <h2 class="section-title">📈 Trending</h2>
@@ -101,7 +119,7 @@
       </div>
     </section>
 
-    <!-- HOTTEST QUIZZES (Based on likes) -->
+    <!-- HOTTEST QUIZZES -->
     <section class="section-block" aria-label="Hottest Quizzes">
       <div class="section-head">
         <h2 class="section-title">🔥 Hottest</h2>
@@ -138,13 +156,12 @@
   <script>
     let allQuizzes = [];
     let allUsers = [];
-    let quizzesBinCache = null;
-    let usersBinCache = null;
+    let currentUserRecord = CURRENT_USER;
     let currentSlideIndex = 0;
     let slideTimer = null;
 
-    // Active solo game state
     let activeQuiz = null;
+    let activeQuizUsedKey = false;
     let qIndex = 0;
     let currentScore = 0;
     let correctCount = 0;
@@ -157,10 +174,27 @@
       return escapeHtml(avatarVal);
     }
 
-    function initTopUser() {
-      if (!CURRENT_USER) return;
-      document.getElementById("topUserName").textContent = CURRENT_USER.username || CURRENT_USER.fullName;
-      document.getElementById("topUserAvatar").innerHTML = renderAvatarContent(CURRENT_USER.avatar);
+    function initTopUserAndRank(userObj = currentUserRecord) {
+      if (!userObj) return;
+      document.getElementById("topUserName").textContent = userObj.username || userObj.fullName;
+      document.getElementById("topUserAvatar").innerHTML = renderAvatarContent(userObj.avatar);
+
+      const pts = Number(userObj.stats?.totalScore) || 0;
+      const rankInfo = getRankInfo(pts);
+      const keysLeft = getAvailableReplayKeys(userObj);
+
+      const rankImgEl = document.getElementById("userRankImg");
+      rankImgEl.style.display = "";
+      rankImgEl.src = rankInfo.image;
+      rankImgEl.onerror = () => {
+        rankImgEl.style.display = "none";
+      };
+
+      document.getElementById("userRankName").textContent = rankInfo.name;
+      document.getElementById("userRankStars").textContent = renderStarsText(rankInfo.stars);
+      document.getElementById("userRankPoints").textContent =
+        `${pts.toLocaleString()} / ${KWIZ_CONFIG.maxPoints.toLocaleString()} pts`;
+      document.getElementById("userReplayKeys").textContent = String(keysLeft);
     }
 
     function isKwizTeamQuiz(quiz) {
@@ -174,52 +208,71 @@
     }
 
     function hasUserLiked(quiz) {
-      if (!CURRENT_USER || !Array.isArray(quiz.likedBy)) return false;
-      return quiz.likedBy.includes(CURRENT_USER.id);
+      if (!currentUserRecord || !Array.isArray(quiz.likedBy)) return false;
+      return quiz.likedBy.includes(currentUserRecord.id);
     }
 
-    // ==================== SLIDESHOW ====================
+    // ==================== SLIDESHOW (Image links directly to quiz) ====================
     function renderSlideshow(quizzes) {
       const track = document.getElementById("slidesTrack");
       const dots = document.getElementById("slideshowDots");
       const arrows = document.getElementById("slideshowArrows");
       const counter = document.getElementById("slideshowCounter");
 
-      let featured = quizzes.filter(isKwizTeamQuiz);
-      if (featured.length === 0) {
-        featured = quizzes.slice(0, 4);
-      }
+      const featured = quizzes.filter(isKwizTeamQuiz);
 
       if (featured.length === 0) {
         track.innerHTML = `
           <div class="slide-card">
             <div class="slide-content">
               <span class="official-pill">Kwiz Team</span>
-              <h3 class="slide-title">No official quizzes yet</h3>
-              <p class="slide-desc">Create your first quiz in the Create tab or Admin panel.</p>
+              <h3 class="slide-title">No Kwiz Team quizzes yet</h3>
+              <p class="slide-desc">Featured quizzes created by Kwiz Team will appear here with their cover images.</p>
             </div>
           </div>
         `;
         dots.innerHTML = "";
         arrows.style.display = "none";
+        counter.textContent = "0 Official";
         return;
       }
 
-      counter.textContent = `${featured.length} Featured`;
+      counter.textContent = "Tap image to open";
       track.innerHTML = featured
         .map((q) => {
           const imgUrl = (q.coverImage || q.imageUrl || q.image || "").trim();
-          const hasImg = /^https?:\/\//i.test(imgUrl);
+          const hasImg = /^https?:\/\//i.test(imgUrl) || /\.(png|jpe?g|webp|gif)$/i.test(imgUrl);
+          const done = hasCompletedQuiz(currentUserRecord, q.id);
+
           return `
-            <article class="slide-card ${hasImg ? "has-image" : ""}">
-              ${hasImg ? `<img class="slide-bg-img" src="${escapeHtml(imgUrl)}" alt="${escapeHtml(q.title)}" onerror="this.remove()" />` : ""}
+            <article
+              class="slide-card ${hasImg ? "has-image" : ""}"
+              style="cursor: pointer;"
+              onclick="openQuizFromSlide('${escapeHtml(q.id)}')"
+            >
+              ${
+                hasImg
+                  ? `<img
+                      class="slide-bg-img"
+                      src="${escapeHtml(imgUrl)}"
+                      alt="${escapeHtml(q.title)}"
+                      title="Open ${escapeHtml(q.title)}"
+                      onclick="event.stopPropagation(); openQuizFromSlide('${escapeHtml(q.id)}')"
+                      onerror="this.remove()"
+                    />`
+                  : ""
+              }
               <div class="slide-content">
                 <span class="official-pill">⚡ ${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "Mix")}</span>
                 <h3 class="slide-title">${escapeHtml(q.title)}</h3>
-                <p class="slide-desc">${escapeHtml(q.description || `${(q.questions || []).length} mixed questions`)}</p>
+                <p class="slide-desc">${escapeHtml(q.description || `${(q.questions || []).length} questions`)}</p>
                 <div class="slide-footer">
                   <span class="slide-stats">▶ ${Number(q.plays) || 0} plays • ♥ ${getLikeCount(q)}</span>
-                  <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(q.id)}')">Play Now</button>
+                  <button
+                    type="button"
+                    class="btn-play"
+                    onclick="event.stopPropagation(); openQuizFromSlide('${escapeHtml(q.id)}')"
+                  >${done ? "Completed / Key" : "Open Quiz"}</button>
                 </div>
               </div>
             </article>
@@ -237,7 +290,10 @@
           .join("");
 
         dots.querySelectorAll(".slide-dot").forEach((dot) => {
-          dot.addEventListener("click", () => goToSlide(Number(dot.dataset.slide), featured.length));
+          dot.addEventListener("click", (e) => {
+            e.stopPropagation();
+            goToSlide(Number(dot.dataset.slide), featured.length);
+          });
         });
 
         startAutoSlide(featured.length);
@@ -246,10 +302,18 @@
         dots.innerHTML = "";
       }
 
-      document.getElementById("prevSlideBtn").onclick = () =>
+      document.getElementById("prevSlideBtn").onclick = (e) => {
+        e.stopPropagation();
         goToSlide((currentSlideIndex - 1 + featured.length) % featured.length, featured.length);
-      document.getElementById("nextSlideBtn").onclick = () =>
+      };
+      document.getElementById("nextSlideBtn").onclick = (e) => {
+        e.stopPropagation();
         goToSlide((currentSlideIndex + 1) % featured.length, featured.length);
+      };
+    }
+
+    function openQuizFromSlide(quizId) {
+      startQuiz(quizId);
     }
 
     function goToSlide(index, total) {
@@ -280,7 +344,7 @@
       label.textContent = `${history.length} played`;
 
       if (history.length === 0) {
-        container.innerHTML = `<div class="empty-box" style="width:100%;">You haven't played any quizzes yet. Pick one below!</div>`;
+        container.innerHTML = `<div class="empty-box" style="width:100%;">No completed quizzes yet.</div>`;
         return;
       }
 
@@ -298,7 +362,7 @@
                 <span class="history-score">${escapeHtml(item.scoreLabel || `${item.score || 0} pts`)}</span>
                 ${
                   exists
-                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem;" onclick="startQuiz('${escapeHtml(item.quizId)}')">Replay</button>`
+                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem;" onclick="startQuiz('${escapeHtml(item.quizId)}')">🔑 Key</button>`
                     : `<span style="font-size:0.72rem; color:var(--text-muted);">Archived</span>`
                 }
               </div>
@@ -311,10 +375,11 @@
     // ==================== TRENDING & HOTTEST ====================
     function buildQuizCardHtml(quiz, rankBadge = "") {
       const imgUrl = (quiz.coverImage || quiz.imageUrl || quiz.image || "").trim();
-      const hasImg = /^https?:\/\//i.test(imgUrl);
+      const hasImg = /^https?:\/\//i.test(imgUrl) || /\.(png|jpe?g|webp|gif)$/i.test(imgUrl);
       const liked = hasUserLiked(quiz);
       const likes = getLikeCount(quiz);
       const plays = Number(quiz.plays) || 0;
+      const done = hasCompletedQuiz(currentUserRecord, quiz.id);
       const authorLink = quiz.authorId
         ? `profile.html?user=${encodeURIComponent(quiz.authorId)}`
         : "#";
@@ -332,13 +397,15 @@
             <div class="quiz-cat">${escapeHtml(quiz.category || "General")}</div>
             <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
             <div class="quiz-meta">
-              <span>by <a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Creator")}</a></span>
+              <span>by <a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Kwiz Team")}</a></span>
               <span>• ▶ ${plays}</span>
               <span>• ${(quiz.questions || []).length} Qs</span>
             </div>
           </div>
           <div class="quiz-actions">
-            <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(quiz.id)}')">Play</button>
+            <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(quiz.id)}')">
+              ${done ? "🔑 Replay" : "Play"}
+            </button>
             <button type="button" class="btn-like ${liked ? "liked" : ""}" onclick="toggleLike('${escapeHtml(quiz.id)}')">
               ${liked ? "♥" : "♡"} ${likes}
             </button>
@@ -352,17 +419,15 @@
       const hottestContainer = document.getElementById("hottestList");
 
       if (allQuizzes.length === 0) {
-        trendingContainer.innerHTML = `<div class="empty-box">No quizzes available yet. Tap Create below to make the first one!</div>`;
-        hottestContainer.innerHTML = `<div class="empty-box">No quizzes liked yet.</div>`;
+        trendingContainer.innerHTML = `<div class="empty-box">No quizzes posted yet.</div>`;
+        hottestContainer.innerHTML = `<div class="empty-box">No liked quizzes yet.</div>`;
         return;
       }
 
-      // Trending = sorted by plays descending
       const trending = [...allQuizzes]
         .sort((a, b) => (Number(b.plays) || 0) - (Number(a.plays) || 0))
         .slice(0, 6);
 
-      // Hottest = sorted by likes descending
       const hottest = [...allQuizzes]
         .sort((a, b) => getLikeCount(b) - getLikeCount(a))
         .slice(0, 6);
@@ -377,7 +442,7 @@
     }
 
     async function toggleLike(quizId) {
-      if (!CURRENT_USER) return;
+      if (!currentUserRecord) return;
       try {
         const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
         const quizzes = Array.isArray(freshBin.quizzes) ? freshBin.quizzes : [];
@@ -388,9 +453,9 @@
           target.likedBy = [];
         }
 
-        const idx = target.likedBy.indexOf(CURRENT_USER.id);
+        const idx = target.likedBy.indexOf(currentUserRecord.id);
         if (idx === -1) {
-          target.likedBy.push(CURRENT_USER.id);
+          target.likedBy.push(currentUserRecord.id);
         } else {
           target.likedBy.splice(idx, 1);
         }
@@ -399,7 +464,6 @@
         freshBin.quizzes = quizzes;
         await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
 
-        quizzesBinCache = freshBin;
         allQuizzes = quizzes;
         renderSlideshow(allQuizzes);
         renderTrendingAndHottest();
@@ -451,20 +515,21 @@
           html += `<div class="search-group-title">Players &amp; Creators</div>`;
           html += matchedUsers
             .slice(0, 5)
-            .map(
-              (u) => `
-              <a class="search-item" href="profile.html?user=${encodeURIComponent(u.id)}">
-                <div class="search-item-main">
-                  <div class="search-item-badge">${renderAvatarContent(u.avatar)}</div>
-                  <div>
-                    <div class="search-item-title">${escapeHtml(u.fullName || u.username)}</div>
-                    <div class="search-item-sub">@${escapeHtml(u.username)} • ${u.stats?.totalScore || 0} pts</div>
+            .map((u) => {
+              const rInfo = getRankInfo(u.stats?.totalScore || 0);
+              return `
+                <a class="search-item" href="profile.html?user=${encodeURIComponent(u.id)}">
+                  <div class="search-item-main">
+                    <div class="search-item-badge">${renderAvatarContent(u.avatar)}</div>
+                    <div>
+                      <div class="search-item-title">${escapeHtml(u.fullName || u.username)}</div>
+                      <div class="search-item-sub">@${escapeHtml(u.username)} • ${escapeHtml(rInfo.name)} (${u.stats?.totalScore || 0} pts)</div>
+                    </div>
                   </div>
-                </div>
-                <span style="font-size:0.75rem; color:var(--accent-warm); font-weight:700;">View →</span>
-              </a>
-            `
-            )
+                  <span style="font-size:0.75rem; color:var(--accent-warm); font-weight:700;">View →</span>
+                </a>
+              `;
+            })
             .join("");
         }
 
@@ -479,10 +544,10 @@
                   <div class="search-item-badge">📝</div>
                   <div>
                     <div class="search-item-title">${escapeHtml(q.title)}</div>
-                    <div class="search-item-sub">${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Creator")}</div>
+                    <div class="search-item-sub">${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Kwiz Team")}</div>
                   </div>
                 </div>
-                <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Play</span>
+                <span style="font-size:0.75rem; color:var(--accent-cyan); font-weight:700;">Open</span>
               </div>
             `
             )
@@ -511,8 +576,8 @@
       });
     }
 
-    // ==================== SOLO QUIZ PLAYER ====================
-    function startQuiz(quizId) {
+    // ==================== SOLO QUIZ PLAYER + REPLAY LOCK / KEY ====================
+    async function startQuiz(quizId) {
       const quiz = allQuizzes.find((q) => q.id === quizId);
       if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
         alert("This quiz has no questions yet.");
@@ -520,6 +585,60 @@
       }
 
       document.getElementById("searchResultsPanel").classList.remove("open");
+
+      const alreadyDone = hasCompletedQuiz(currentUserRecord, quiz.id);
+      activeQuizUsedKey = false;
+
+      if (alreadyDone) {
+        const pts = Number(currentUserRecord?.stats?.totalScore) || 0;
+        const rankInfo = getRankInfo(pts);
+        const keysLeft = getAvailableReplayKeys(currentUserRecord);
+
+        if (pts < KWIZ_CONFIG.replayKeyMinPoints || rankInfo.maxReplayKeys <= 0) {
+          alert(
+            `You already completed "${quiz.title}". Replays require at least ${KWIZ_CONFIG.replayKeyMinPoints.toLocaleString()} points and a qualifying rank (${rankInfo.name} currently has ${rankInfo.maxReplayKeys} max replay keys).`
+          );
+          return;
+        }
+
+        if (keysLeft <= 0) {
+          alert(
+            `You already completed "${quiz.title}" and have 0 Replay Keys remaining for your ${rankInfo.name} rank limit (${rankInfo.maxReplayKeys} keys).`
+          );
+          return;
+        }
+
+        const confirmUse = confirm(
+          `You already completed "${quiz.title}". Use 1 Replay Key to play again? (${keysLeft} key(s) available under ${rankInfo.name} limit)`
+        );
+        if (!confirmUse) return;
+
+        try {
+          const freshUsersBin = await readBin(KWIZ_CONFIG.usersBinId);
+          const uList = Array.isArray(freshUsersBin.users) ? freshUsersBin.users : [];
+          const me = uList.find((u) => u.id === currentUserRecord.id);
+          if (!me) return;
+
+          const latestKeys = getAvailableReplayKeys(me);
+          if (latestKeys <= 0) {
+            alert("No Replay Keys available.");
+            return;
+          }
+
+          me.replayKeysUsed = (Number(me.replayKeysUsed) || 0) + 1;
+          freshUsersBin.users = uList;
+          await writeBin(KWIZ_CONFIG.usersBinId, freshUsersBin);
+
+          currentUserRecord = me;
+          setSessionUser(me);
+          initTopUserAndRank(me);
+          activeQuizUsedKey = true;
+        } catch (err) {
+          alert("Could not consume Replay Key: " + err.message);
+          return;
+        }
+      }
+
       activeQuiz = quiz;
       qIndex = 0;
       currentScore = 0;
@@ -650,7 +769,6 @@
       };
 
       try {
-        // 1. Increment play count in kwiz_quizzes
         const freshQuizzesBin = await readBin(KWIZ_CONFIG.quizzesBinId);
         const qList = Array.isArray(freshQuizzesBin.quizzes) ? freshQuizzesBin.quizzes : [];
         const qItem = qList.find((item) => item.id === activeQuiz.id);
@@ -661,14 +779,17 @@
           allQuizzes = qList;
         }
 
-        // 2. Save run in user's history & update stats in kwiz_users
         const freshUsersBin = await readBin(KWIZ_CONFIG.usersBinId);
         const uList = Array.isArray(freshUsersBin.users) ? freshUsersBin.users : [];
-        const me = uList.find((u) => u.id === CURRENT_USER.id);
+        const me = uList.find((u) => u.id === currentUserRecord.id);
         if (me) {
           if (!me.stats) me.stats = { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 };
           me.stats.quizzesPlayed = (Number(me.stats.quizzesPlayed) || 0) + 1;
-          me.stats.totalScore = (Number(me.stats.totalScore) || 0) + currentScore;
+          const nextTotal = Math.min(
+            KWIZ_CONFIG.maxPoints,
+            (Number(me.stats.totalScore) || 0) + currentScore
+          );
+          me.stats.totalScore = nextTotal;
 
           if (!Array.isArray(me.history)) me.history = [];
           me.history.push({
@@ -676,24 +797,27 @@
             quizTitle: activeQuiz.title,
             category: activeQuiz.category || "Mix",
             score: currentScore,
+            usedReplayKey: activeQuizUsedKey,
             scoreLabel: `${correctCount}/${totalQs} (${currentScore} pts)`,
             playedAt: new Date().toISOString()
           });
 
           freshUsersBin.users = uList;
           await writeBin(KWIZ_CONFIG.usersBinId, freshUsersBin);
+          currentUserRecord = me;
           setSessionUser(me);
           allUsers = uList;
+          initTopUserAndRank(me);
           renderHistory(me);
         }
 
         renderSlideshow(allQuizzes);
         renderTrendingAndHottest();
         const statusEl = document.getElementById("syncSaveStatus");
-        if (statusEl) statusEl.textContent = "Saved to your Kwiz profile!";
+        if (statusEl) statusEl.textContent = "Saved! Replay locked unless using a Replay Key.";
       } catch (err) {
         const statusEl = document.getElementById("syncSaveStatus");
-        if (statusEl) statusEl.textContent = "Played offline (sync failed: " + err.message + ")";
+        if (statusEl) statusEl.textContent = "Sync error: " + err.message;
       }
     }
 
@@ -704,8 +828,8 @@
     // ==================== BOOTSTRAP HOME PAGE ====================
     async function bootHome() {
       if (!CURRENT_USER) return;
-      initTopUser();
-      renderBottomNav("home", CURRENT_USER);
+      initTopUserAndRank(currentUserRecord);
+      renderBottomNav("home", currentUserRecord);
       setupSmartSearch();
 
       try {
@@ -713,9 +837,6 @@
           readBin(KWIZ_CONFIG.quizzesBinId),
           readBin(KWIZ_CONFIG.usersBinId)
         ]);
-
-        quizzesBinCache = quizzesData;
-        usersBinCache = usersData;
 
         allQuizzes = Array.isArray(quizzesData.quizzes) ? quizzesData.quizzes : [];
         allUsers = Array.isArray(usersData.users) ? usersData.users : [];
@@ -726,7 +847,7 @@
         );
 
         if (activeEv && activeEv.isActive) {
-          renderBottomNav("home", CURRENT_USER, activeEv.iconUrl || "");
+          renderBottomNav("home", currentUserRecord, activeEv.iconUrl || "");
           const banner = document.getElementById("eventBanner");
           banner.classList.add("active");
           document.getElementById("eventTitle").textContent = activeEv.title || "Kwiz Live Event";
@@ -740,10 +861,11 @@
           }
         }
 
-        const freshMe = allUsers.find((u) => u.id === CURRENT_USER.id);
+        const freshMe = allUsers.find((u) => u.id === currentUserRecord.id);
         if (freshMe) {
+          currentUserRecord = freshMe;
           setSessionUser(freshMe);
-          initTopUser();
+          initTopUserAndRank(freshMe);
           renderHistory(freshMe);
         } else {
           renderHistory(null);
