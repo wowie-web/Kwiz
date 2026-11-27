@@ -522,14 +522,18 @@
           <button type="button" class="btn-sm danger remove-q-btn">Remove</button>
         </div>
 
-        <div class="field-group" style="margin-bottom:10px;">
-          <label class="field-label">Format</label>
-          <select class="input-control q-type-select">
-            <option value="mcq">Multiple Choice (4 Options)</option>
-            <option value="tf">True / False</option>
-            <option value="text">Type the Answer</option>
-          </select>
-        </div>
+        <div class="field-group">
+            <label class="field-label">Event Quiz Series (Add quizzes in round order)</label>
+            <div style="display:flex; gap:8px;">
+              <select id="evSeriesQuizPicker" class="input-control">
+                <option value="">-- Choose a quiz to add to series --</option>
+              </select>
+              <button type="button" id="addSeriesQuizBtn" class="btn-sm" style="white-space:nowrap;">
+                <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Round
+              </button>
+            </div>
+            <div id="evSeriesList" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
 
         <div class="field-group" style="margin-bottom:10px;">
           <label class="field-label">Question Prompt *</label>
