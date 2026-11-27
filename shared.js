@@ -5,20 +5,38 @@ const KWIZ_CONFIG = {
   baseUrl: "https://api.jsonbin.io/v3/b",
   sessionKey: "kwiz_active_session_v1",
   defaultLogo: "logo.png",
+  defaultEmojiAvatar: "🧠",
   maxPoints: 100000,
   replayKeyMinPoints: 50000
 };
 
 // Ascending rank ladder from 0 to 100,000 points (each tier has 5 stars)
 const KWIZ_RANKS = [
-  { key: "rookie",     name: "Rookie",     image: "Rookie.png",     min: 0,     max: 14284,  maxReplayKeys: 0 },
-  { key: "novice",     name: "Novice",     image: "Novice.png",     min: 14285, max: 28569,  maxReplayKeys: 0 },
-  { key: "apprentice", name: "Apprentice", image: "Apprentice.png", min: 28570, max: 42854,  maxReplayKeys: 0 },
-  { key: "master",     name: "Master",     image: "Master.png",     min: 42855, max: 57139,  maxReplayKeys: 1 },
-  { key: "grandmaster",name: "Grandmaster",image: "Grandmaster.png",min: 57140, max: 71424,  maxReplayKeys: 2 },
-  { key: "scholar",    name: "Scholar",    image: "Scholar.png",    min: 71425, max: 85709,  maxReplayKeys: 3 },
-  { key: "legend",     name: "Legend",     image: "Legend.png",     min: 85710, max: 100000, maxReplayKeys: 5 }
+  { key: "rookie",      name: "Rookie",      image: "Rookie.png",      min: 0,     max: 14284,  maxReplayKeys: 0 },
+  { key: "novice",      name: "Novice",      image: "Novice.png",      min: 14285, max: 28569,  maxReplayKeys: 0 },
+  { key: "apprentice",  name: "Apprentice",  image: "Apprentice.png",  min: 28570, max: 42854,  maxReplayKeys: 0 },
+  { key: "master",      name: "Master",      image: "Master.png",      min: 42855, max: 57139,  maxReplayKeys: 1 },
+  { key: "grandmaster", name: "Grandmaster", image: "Grandmaster.png", min: 57140, max: 71424,  maxReplayKeys: 2 },
+  { key: "scholar",     name: "Scholar",     image: "Scholar.png",     min: 71425, max: 85709,  maxReplayKeys: 3 },
+  { key: "legend",      name: "Legend",      image: "Legend.png",      min: 85710, max: 100000, maxReplayKeys: 5 }
 ];
+
+function refreshLucideIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
+
+// Extracts a clean emoji string for user profile avatars
+function normalizeEmojiAvatar(val) {
+  const cleaned = String(val ?? "").trim();
+  if (!cleaned) return KWIZ_CONFIG.defaultEmojiAvatar;
+  // If someone pasted a URL or long text, fall back to default emoji
+  if (/^https?:\/\//i.test(cleaned) || cleaned.length > 8) {
+    return KWIZ_CONFIG.defaultEmojiAvatar;
+  }
+  return cleaned;
+}
 
 function getRankInfo(points) {
   const clamped = Math.max(0, Math.min(KWIZ_CONFIG.maxPoints, Number(points) || 0));
@@ -46,7 +64,7 @@ function getRankInfo(points) {
 function getAvailableReplayKeys(userRecord) {
   const pts = Number(userRecord?.stats?.totalScore) || 0;
   const info = getRankInfo(pts);
-  if (!info.qualifiesForKeys || info.maxKeysForRank <= 0) return 0;
+  if (!info.qualifiesForKeys || info.maxReplayKeys <= 0) return 0;
   const usedKeys = Number(userRecord?.replayKeysUsed) || 0;
   return Math.max(0, info.maxKeysForRank - usedKeys);
 }
@@ -105,7 +123,7 @@ function setSessionUser(userObj) {
     username: userObj.username,
     birthdate: userObj.birthdate || "",
     role: userObj.role || (userObj.username === "admin" ? "admin" : "user"),
-    avatar: userObj.avatar || "🧠",
+    avatar: normalizeEmojiAvatar(userObj.avatar),
     bio: userObj.bio || "",
     replayKeysUsed: Number(userObj.replayKeysUsed) || 0,
     stats: userObj.stats || { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 },
@@ -191,37 +209,20 @@ async function applyEventBranding(logoImgElement, existingQuizzesBinData = null)
   }
 }
 
+// Always renders the bottom navigation bar with Lucide icons
 function renderBottomNav(activePage, user, eventIconUrl = "") {
   const nav = document.getElementById("bottomNav");
   if (!nav) return;
 
-  const isAdmin = user && (user.role === "admin" || (user.username || "").toLowerCase() === "admin");
+  const isAdmin =
+    Boolean(user) &&
+    (user.role === "admin" || String(user.username || "").trim().toLowerCase() === "admin");
 
   const items = [
-    {
-      key: "home",
-      label: "Home",
-      href: "index.html",
-      svg: `<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`
-    },
-    {
-      key: "create",
-      label: "Create",
-      href: "quiz.html",
-      svg: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>`
-    },
-    {
-      key: "rank",
-      label: "Rank",
-      href: "rank.html",
-      svg: `<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>`
-    },
-    {
-      key: "profile",
-      label: "Profile",
-      href: "profile.html",
-      svg: `<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`
-    }
+    { key: "home",    label: "Home",    href: "index.html",   icon: "home" },
+    { key: "create",  label: "Create",  href: "quiz.html",    icon: "plus-circle" },
+    { key: "rank",    label: "Rank",    href: "rank.html",    icon: "trophy" },
+    { key: "profile", label: "Profile", href: "profile.html", icon: "user" }
   ];
 
   if (isAdmin) {
@@ -229,22 +230,25 @@ function renderBottomNav(activePage, user, eventIconUrl = "") {
       key: "admin",
       label: "Admin",
       href: "admin.html",
-      svg: `<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`
+      icon: "shield"
     });
   }
 
+  nav.style.display = "flex";
   nav.innerHTML = items
     .map((item) => {
-      const iconMarkup =
+      const iconHtml =
         item.key === "home" && eventIconUrl
-          ? `<img src="${escapeHtml(eventIconUrl)}" alt="" onerror="this.style.display='none'" />`
-          : item.svg;
+          ? `<img src="${escapeHtml(eventIconUrl)}" alt="Event" onerror="this.style.display='none'" />`
+          : `<i data-lucide="${item.icon}"></i>`;
       return `
         <a href="${item.href}" class="nav-item ${activePage === item.key ? "active" : ""}">
-          ${iconMarkup}
+          ${iconHtml}
           <span>${item.label}</span>
         </a>
       `;
     })
     .join("");
+
+  refreshLucideIcons();
 }
