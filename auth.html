@@ -6,6 +6,8 @@
   <title>Kwiz — Sign Up or Log In</title>
   <link rel="icon" type="image/png" href="logo.png" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="shared.js"></script>
 </head>
 <body>
   <main class="auth-wrapper">
@@ -63,10 +65,7 @@
               aria-label="Show or hide password"
               aria-pressed="false"
             >
-              <svg class="icon-eye-open" viewBox="0 0 24 24">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
+              <i data-lucide="eye"></i>
             </button>
           </div>
         </div>
@@ -132,10 +131,7 @@
               aria-label="Show or hide password"
               aria-pressed="false"
             >
-              <svg viewBox="0 0 24 24">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
+              <i data-lucide="eye"></i>
             </button>
           </div>
         </div>
@@ -159,22 +155,16 @@
               aria-label="Show or hide confirm password"
               aria-pressed="false"
             >
-              <svg viewBox="0 0 24 24">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
+              <i data-lucide="eye"></i>
             </button>
           </div>
         </div>
 
         <button type="submit" id="signupSubmitBtn" class="submit-btn">Create Account</button>
       </form>
-
-      <p class="helper-note">Synced directly with Kwiz cloud storage</p>
     </section>
   </main>
 
-  <script src="shared.js"></script>
   <script>
     const tabLogin = document.getElementById("tabLogin");
     const tabSignup = document.getElementById("tabSignup");
@@ -182,18 +172,6 @@
     const signupForm = document.getElementById("signupForm");
     const statusBanner = document.getElementById("statusBanner");
     const brandLogo = document.getElementById("brandLogo");
-
-    const EYE_OPEN_SVG = `
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-      <circle cx="12" cy="12" r="3"></circle>
-    `;
-
-    const EYE_CLOSED_SVG = `
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
-      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path>
-      <line x1="1" y1="1" x2="23" y2="23"></line>
-    `;
 
     function showStatus(message, type = "info") {
       statusBanner.textContent = message;
@@ -206,6 +184,7 @@
     }
 
     function switchTab(mode) {
+      playSound("tap");
       hideStatus();
       const isLogin = mode === "login";
       tabLogin.classList.toggle("active", isLogin);
@@ -220,27 +199,29 @@
     tabLogin.addEventListener("click", () => switchTab("login"));
     tabSignup.addEventListener("click", () => switchTab("signup"));
 
-    // Eye toggle buttons for show / hide password
     document.querySelectorAll(".eye-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
+        playSound("tap");
         const input = document.getElementById(btn.dataset.target);
         if (!input) return;
         const willShow = input.type === "password";
         input.type = willShow ? "text" : "password";
         btn.setAttribute("aria-pressed", String(willShow));
-        btn.innerHTML = `<svg viewBox="0 0 24 24">${willShow ? EYE_CLOSED_SVG : EYE_OPEN_SVG}</svg>`;
+        btn.innerHTML = `<i data-lucide="${willShow ? "eye-off" : "eye"}"></i>`;
+        refreshLucideIcons();
       });
     });
 
-    // LOGIN HANDLER
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      playSound("tap");
       hideStatus();
 
       const identifier = document.getElementById("loginIdentifier").value.trim();
       const password = document.getElementById("loginPassword").value;
 
       if (!identifier || !password) {
+        playSound("wrong");
         showStatus("Please enter your full name or username and password.", "error");
         return;
       }
@@ -261,6 +242,7 @@
         });
 
         if (!matchedUser) {
+          playSound("wrong");
           showStatus("No account found with that full name or username.", "error");
           btn.disabled = false;
           btn.textContent = "Log In to Kwiz";
@@ -269,27 +251,30 @@
 
         const passwordHash = await sha256Hex(password);
         if (matchedUser.passwordHash !== passwordHash) {
+          playSound("wrong");
           showStatus("Incorrect password. Please try again.", "error");
           btn.disabled = false;
           btn.textContent = "Log In to Kwiz";
           return;
         }
 
+        playSound("correct");
         setSessionUser(matchedUser);
         showStatus(`Welcome back, ${matchedUser.fullName || matchedUser.username}! Redirecting...`, "success");
         setTimeout(() => {
           window.location.href = "index.html";
-        }, 550);
+        }, 500);
       } catch (err) {
+        playSound("wrong");
         showStatus(`Connection error: ${err.message}`, "error");
         btn.disabled = false;
         btn.textContent = "Log In to Kwiz";
       }
     });
 
-    // SIGN UP HANDLER
     signupForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      playSound("tap");
       hideStatus();
 
       const fullName = document.getElementById("signupFullName").value.trim();
@@ -299,21 +284,25 @@
       const confirmPassword = document.getElementById("signupConfirmPassword").value;
 
       if (!fullName || !username || !birthdate || !password || !confirmPassword) {
+        playSound("wrong");
         showStatus("Please fill out all sign-up fields.", "error");
         return;
       }
 
       if (!/^[a-zA-Z0-9._-]{3,24}$/.test(username)) {
+        playSound("wrong");
         showStatus("Username must be 3–24 characters (letters, numbers, ., _, -).", "error");
         return;
       }
 
       if (password.length < 6) {
+        playSound("wrong");
         showStatus("Password must be at least 6 characters long.", "error");
         return;
       }
 
       if (password !== confirmPassword) {
+        playSound("wrong");
         showStatus("Passwords do not match.", "error");
         return;
       }
@@ -323,7 +312,6 @@
       btn.textContent = "Saving to Kwiz...";
 
       try {
-        // Fresh GET right before writing so we don't overwrite concurrent changes
         const binData = await readBin(KWIZ_CONFIG.usersBinId);
         const users = Array.isArray(binData.users) ? binData.users : [];
 
@@ -331,6 +319,7 @@
           (u) => (u.username || "").trim().toLowerCase() === username.toLowerCase()
         );
         if (usernameTaken) {
+          playSound("wrong");
           showStatus("That username is already taken. Try another one.", "error");
           btn.disabled = false;
           btn.textContent = "Create Account";
@@ -345,8 +334,9 @@
           birthdate,
           passwordHash,
           role: username.toLowerCase() === "admin" ? "admin" : "user",
-          avatar: "🧠",
+          avatar: KWIZ_CONFIG.defaultEmojiAvatar,
           bio: "",
+          replayKeysUsed: 0,
           createdAt: new Date().toISOString(),
           stats: {
             quizzesPlayed: 0,
@@ -357,26 +347,23 @@
         };
 
         users.push(newUser);
-        const updatedPayload = {
-          ...binData,
-          users
-        };
-
-        await writeBin(KWIZ_CONFIG.usersBinId, updatedPayload);
+        await writeBin(KWIZ_CONFIG.usersBinId, { ...binData, users });
         setSessionUser(newUser);
 
+        playSound("win");
         showStatus("Account created and synced! Taking you to Kwiz...", "success");
         setTimeout(() => {
           window.location.href = "index.html";
-        }, 650);
+        }, 600);
       } catch (err) {
+        playSound("wrong");
         showStatus(`Could not save account: ${err.message}`, "error");
         btn.disabled = false;
         btn.textContent = "Create Account";
       }
     });
 
-    // Apply active event theme/logo if one is running
+    refreshLucideIcons();
     applyEventBranding(brandLogo);
   </script>
 </body>
