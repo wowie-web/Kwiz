@@ -4,13 +4,23 @@ const KWIZ_CONFIG = {
   quizzesBinId: "6b0973751b390e1b559b4eb9",
   baseUrl: "https://api.jsonbin.io/v3/b",
   sessionKey: "kwiz_active_session_v1",
+  soundPrefKey: "kwiz_sound_enabled_v1",
   defaultLogo: "logo.png",
   defaultEmojiAvatar: "🧠",
   maxPoints: 100000,
   replayKeyMinPoints: 50000
 };
 
-// Ascending rank ladder from 0 to 100,000 points (each tier has 5 stars)
+const KWIZ_CATEGORIES = [
+  "General Knowledge & Miscellaneous",
+  "Entertainment & Pop Culture",
+  "History & Geography",
+  "Science, Math & Tech",
+  "Sports & Recreation",
+  "Food & Drink",
+  "Language, Arts & Culture"
+];
+
 const KWIZ_RANKS = [
   { key: "rookie",      name: "Rookie",      image: "Rookie.png",      min: 0,     max: 14284,  maxReplayKeys: 0 },
   { key: "novice",      name: "Novice",      image: "Novice.png",      min: 14285, max: 28569,  maxReplayKeys: 0 },
@@ -21,17 +31,87 @@ const KWIZ_RANKS = [
   { key: "legend",      name: "Legend",      image: "Legend.png",      min: 85710, max: 100000, maxReplayKeys: 5 }
 ];
 
+// ==================== SOUND EFFECTS (Web Audio API) ====================
+let audioCtx = null;
+
+function isSoundEnabled() {
+  const saved = localStorage.getItem(KWIZ_CONFIG.soundPrefKey);
+  return saved === null ? true : saved === "true";
+}
+
+function setSoundEnabled(enabled) {
+  localStorage.setItem(KWIZ_CONFIG.soundPrefKey, String(Boolean(enabled)));
+}
+
+function playSound(type = "tap") {
+  if (!isSoundEnabled()) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!audioCtx) audioCtx = new AudioContextClass();
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === "tap") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(680, now + 0.055);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.start(now);
+      osc.stop(now + 0.065);
+    } else if (type === "correct") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.setValueAtTime(880, now + 0.09); // A5
+      gain.gain.setValueAtTime(0.11, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === "wrong") {
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.linearRampToValueAtTime(155, now + 0.22);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } else if (type === "win") {
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, idx) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(freq, now + idx * 0.08);
+        g.gain.setValueAtTime(0.09, now + idx * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.22);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(now + idx * 0.08);
+        o.stop(now + idx * 0.08 + 0.23);
+      });
+    }
+  } catch {
+    // Ignore audio errors on restricted devices
+  }
+}
+
 function refreshLucideIcons() {
   if (window.lucide && typeof window.lucide.createIcons === "function") {
     window.lucide.createIcons();
   }
 }
 
-// Extracts a clean emoji string for user profile avatars
 function normalizeEmojiAvatar(val) {
   const cleaned = String(val ?? "").trim();
   if (!cleaned) return KWIZ_CONFIG.defaultEmojiAvatar;
-  // If someone pasted a URL or long text, fall back to default emoji
   if (/^https?:\/\//i.test(cleaned) || cleaned.length > 8) {
     return KWIZ_CONFIG.defaultEmojiAvatar;
   }
@@ -66,7 +146,7 @@ function getAvailableReplayKeys(userRecord) {
   const info = getRankInfo(pts);
   if (!info.qualifiesForKeys || info.maxReplayKeys <= 0) return 0;
   const usedKeys = Number(userRecord?.replayKeysUsed) || 0;
-  return Math.max(0, info.maxKeysForRank - usedKeys);
+  return Math.max(0, info.maxReplayKeys - usedKeys);
 }
 
 function hasCompletedQuiz(userRecord, quizId) {
@@ -209,7 +289,6 @@ async function applyEventBranding(logoImgElement, existingQuizzesBinData = null)
   }
 }
 
-// Always renders the bottom navigation bar with Lucide icons
 function renderBottomNav(activePage, user, eventIconUrl = "") {
   const nav = document.getElementById("bottomNav");
   if (!nav) return;
@@ -242,7 +321,7 @@ function renderBottomNav(activePage, user, eventIconUrl = "") {
           ? `<img src="${escapeHtml(eventIconUrl)}" alt="Event" onerror="this.style.display='none'" />`
           : `<i data-lucide="${item.icon}"></i>`;
       return `
-        <a href="${item.href}" class="nav-item ${activePage === item.key ? "active" : ""}">
+        <a href="${item.href}" class="nav-item ${activePage === item.key ? "active" : ""}" onclick="playSound('tap')">
           ${iconHtml}
           <span>${item.label}</span>
         </a>
