@@ -35,7 +35,7 @@
       border: none;
       background: transparent;
       color: var(--text-secondary);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       padding: 9px 6px;
       border-radius: var(--radius-sm);
@@ -70,12 +70,13 @@
       border-radius: var(--radius-lg);
       padding: 18px 16px;
       margin-bottom: 16px;
+      box-shadow: var(--shadow-card);
     }
 
     .panel-card-title {
       font-size: 1.02rem;
       font-weight: 800;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -106,7 +107,7 @@
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 13px;
+      padding: 12px 13px;
       margin-bottom: 10px;
       display: flex;
       align-items: center;
@@ -144,7 +145,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(7, 13, 25, 0.88);
+      background: rgba(7, 12, 23, 0.88);
       backdrop-filter: blur(6px);
       z-index: 120;
       padding: 20px 16px;
@@ -226,21 +227,26 @@
     </div>
   </section>
 
-  <!-- PROTECTED ADMIN DASHBOARD (Hidden until password matches) -->
+  <!-- PROTECTED ADMIN DASHBOARD -->
   <div id="adminWorkspace" class="app-shell" style="display: none;">
     <header class="top-bar">
       <a href="index.html" class="top-brand">
         <img id="adminBrandLogo" src="logo.png" alt="Kwiz" />
         <div class="top-brand-text">Kwiz <span>Admin</span></div>
       </a>
-      <button type="button" id="lockAdminBtn" class="btn-ghost" style="display:inline-flex; align-items:center; gap:5px;">
-        <i data-lucide="lock" style="width:14px; height:14px;"></i> Lock
-      </button>
+      <div class="top-right-actions">
+        <button type="button" id="soundToggleBtn" class="icon-pill-btn" aria-label="Toggle sound effects" title="Sound effects">
+          <i id="soundIcon" data-lucide="volume-2" style="width:17px; height:17px;"></i>
+        </button>
+        <button type="button" id="lockAdminBtn" class="btn-ghost" style="display:inline-flex; align-items:center; gap:5px;">
+          <i data-lucide="lock" style="width:14px; height:14px;"></i> Lock
+        </button>
+      </div>
     </header>
 
     <div id="adminToast" class="status-banner" role="status"></div>
 
-    <!-- ADMIN NAVIGATION TABS -->
+    <!-- ADMIN TABS -->
     <div class="admin-tabs" role="tablist">
       <button type="button" class="admin-tab-btn active" data-tab="createQuizTab">
         <i data-lucide="sparkles"></i>
@@ -248,7 +254,7 @@
       </button>
       <button type="button" class="admin-tab-btn" data-tab="eventsTab">
         <i data-lucide="calendar-star"></i>
-        <span>Events</span>
+        <span>Event Series</span>
       </button>
       <button type="button" class="admin-tab-btn" data-tab="usersTab">
         <i data-lucide="users"></i>
@@ -268,40 +274,33 @@
           Publish Official "Kwiz Team" Quiz
         </h2>
         <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px;">
-          Quizzes created here are published under <strong>Kwiz Team</strong> and automatically appear in the Home Spotlight slideshow.
+          Published under <strong>Kwiz Team</strong> and shown in the Home Spotlight slideshow. Every question includes an explanation shown after answering.
         </p>
 
         <form id="kwizTeamQuizForm" style="display:flex; flex-direction:column; gap:13px;">
           <div class="field-group">
             <label class="field-label" for="ktQuizTitle">Quiz Title *</label>
-            <input type="text" id="ktQuizTitle" class="input-control" placeholder="e.g. Ultimate Science Showdown" required />
-          </div>
-
-          <div class="row-2">
-            <div class="field-group">
-              <label class="field-label" for="ktQuizCategory">Category *</label>
-              <select id="ktQuizCategory" class="input-control">
-                <option value="General Knowledge">General Knowledge</option>
-                <option value="Science & Tech">Science &amp; Tech</option>
-                <option value="Pop Culture">Pop Culture</option>
-                <option value="History & Geography">History &amp; Geography</option>
-                <option value="Sports & Gaming">Sports &amp; Gaming</option>
-                <option value="Custom">Custom</option>
-              </select>
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="ktCoverImage">Slideshow Cover Image URL</label>
-              <input type="url" id="ktCoverImage" class="input-control" placeholder="https://example.com/banner.jpg" />
-            </div>
+            <input type="text" id="ktQuizTitle" class="input-control" placeholder="e.g. World Capitals & Landmarks" required />
           </div>
 
           <div class="field-group">
-            <label class="field-label" for="ktQuizDesc">Short Description</label>
-            <textarea id="ktQuizDesc" class="input-control" placeholder="What is this official Kwiz Team challenge about?"></textarea>
+            <label class="field-label" for="ktQuizCategory">Category *</label>
+            <select id="ktQuizCategory" class="input-control"></select>
+            <small id="ktCategoryDesc" style="font-size:0.75rem; color:var(--text-muted);"></small>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="ktCoverImage">Slideshow Cover Image URL (Optional)</label>
+            <input type="url" id="ktCoverImage" class="input-control" placeholder="https://example.com/cover.png" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="ktQuizDesc">Quiz Details / Description (Optional)</label>
+            <textarea id="ktQuizDesc" class="input-control" placeholder="Describe the quiz or leave blank to add later..."></textarea>
           </div>
 
           <div class="section-head" style="margin-top: 6px; margin-bottom: 4px;">
-            <span style="font-size:0.92rem; font-weight:800;">Questions (Mixed Formats)</span>
+            <span style="font-size:0.92rem; font-weight:800;">Questions (Mixed Formats + Explanation)</span>
             <button type="button" id="addKtQuestionBtn" class="btn-sm">
               <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Question
             </button>
@@ -316,21 +315,21 @@
       </div>
     </section>
 
-    <!-- ==================== TAB 2: LIVE EVENTS MANAGER ==================== -->
+    <!-- ==================== TAB 2: EVENT SERIES MANAGER ==================== -->
     <section id="eventsTab" class="admin-panel">
       <div class="panel-card">
         <h2 class="panel-card-title">
           <i data-lucide="trophy" style="width:18px; height:18px; color:var(--accent-warm);"></i>
-          Live Event &amp; App Theme Override
+          Event Quiz Series &amp; Theme Override
         </h2>
         <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:14px;">
-          Launch a limited-time contest. The selected theme, custom logo URL, and custom icon URL apply across Kwiz and automatically reset once the event ends.
+          Run a multi-quiz event series with a custom app theme, logo/icon URLs, and prize. Everything resets automatically when the end time passes.
         </p>
 
         <form id="eventConfigForm" style="display:flex; flex-direction:column; gap:13px;">
           <div class="field-group">
-            <label class="field-label" for="evTitle">Event Name *</label>
-            <input type="text" id="evTitle" class="input-control" placeholder="e.g. Golden Championship Week" required />
+            <label class="field-label" for="evTitle">Event Series Name *</label>
+            <input type="text" id="evTitle" class="input-control" placeholder="e.g. Grand Trivia Gauntlet" required />
           </div>
 
           <div class="row-2">
@@ -351,14 +350,20 @@
 
           <div class="field-group">
             <label class="field-label" for="evPrize">Event Prize Description</label>
-            <input type="text" id="evPrize" class="input-control" placeholder="e.g. +5,000 Bonus Points &amp; Legend Badge" />
+            <input type="text" id="evPrize" class="input-control" placeholder="e.g. Bonus Points &amp; Series Champion Title" />
           </div>
 
           <div class="field-group">
-            <label class="field-label" for="evContestQuiz">Contest Quiz</label>
-            <select id="evContestQuiz" class="input-control">
-              <option value="">-- Select a quiz for this contest --</option>
-            </select>
+            <label class="field-label" for="evSeriesQuizPicker">Event Quiz Series (Add rounds in order)</label>
+            <div style="display:flex; gap:8px;">
+              <select id="evSeriesQuizPicker" class="input-control">
+                <option value="">-- Choose a quiz to add to series --</option>
+              </select>
+              <button type="button" id="addSeriesQuizBtn" class="btn-sm" style="white-space:nowrap;">
+                <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Round
+              </button>
+            </div>
+            <div id="evSeriesList" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
           </div>
 
           <div class="row-2">
@@ -373,7 +378,7 @@
           </div>
 
           <button type="submit" id="saveEventBtn" class="submit-btn">
-            Activate / Update Live Event
+            Activate / Update Event Series
           </button>
 
           <button
@@ -415,7 +420,10 @@
           </h2>
           <span class="section-meta" id="quizzesTotalCount">0 quizzes</span>
         </div>
-        <div class="field-group" style="margin: 12px 0;">
+        <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:10px;">
+          Tip: Use <strong>Edit</strong> on any user-created quiz to add a cover image URL or extra details.
+        </p>
+        <div class="field-group" style="margin: 10px 0 12px;">
           <input type="search" id="adminQuizSearch" class="input-control" placeholder="Filter quizzes by title, category, or author..." />
         </div>
         <div id="adminQuizzesList"></div>
@@ -423,7 +431,7 @@
     </section>
   </div>
 
-  <!-- EDIT MODAL (Used for editing Users or Quizzes) -->
+  <!-- EDIT MODAL -->
   <div id="adminEditModal" class="edit-modal" role="dialog" aria-modal="true">
     <div class="edit-modal-card">
       <div class="section-head" style="margin-bottom: 14px;">
@@ -445,6 +453,39 @@
 
     let usersBinData = { users: [] };
     let quizzesBinData = { categories: [], activeEvent: {}, quizzes: [] };
+    let eventSeriesIds = [];
+
+    function syncSoundIcon() {
+      const enabled = isSoundEnabled();
+      const btn = document.getElementById("soundToggleBtn");
+      const icon = document.getElementById("soundIcon");
+      if (!btn || !icon) return;
+      btn.classList.toggle("sound-on", enabled);
+      icon.setAttribute("data-lucide", enabled ? "volume-2" : "volume-x");
+      refreshLucideIcons();
+    }
+
+    document.getElementById("soundToggleBtn").addEventListener("click", () => {
+      setSoundEnabled(!isSoundEnabled());
+      syncSoundIcon();
+      playKwizSound("tap");
+    });
+
+    function initCategoryDropdown() {
+      const select = document.getElementById("ktQuizCategory");
+      const descEl = document.getElementById("ktCategoryDesc");
+      select.innerHTML = KWIZ_CATEGORIES.map(
+        (c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`
+      ).join("");
+
+      function updateDesc() {
+        const found = KWIZ_CATEGORIES.find((c) => c.name === select.value);
+        descEl.textContent = found ? found.desc : "";
+      }
+
+      select.addEventListener("change", updateDesc);
+      updateDesc();
+    }
 
     function showToast(msg, type = "success") {
       const el = document.getElementById("adminToast");
@@ -475,6 +516,7 @@
       workspace.style.display = "block";
       const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
       renderBottomNav("admin", { ...sessionUser, role: "admin" });
+      syncSoundIcon();
       loadAdminData();
     }
 
@@ -491,8 +533,10 @@
       const entered = gatePassInput.value;
       if (entered === ADMIN_SECRET) {
         gateAlert.className = "status-banner";
+        playKwizSound("correct");
         unlockDashboard();
       } else {
+        playKwizSound("wrong");
         gateAlert.textContent = "Access denied. Invalid admin password.";
         gateAlert.className = "status-banner show error";
       }
@@ -522,18 +566,14 @@
           <button type="button" class="btn-sm danger remove-q-btn">Remove</button>
         </div>
 
-        <div class="field-group">
-            <label class="field-label">Event Quiz Series (Add quizzes in round order)</label>
-            <div style="display:flex; gap:8px;">
-              <select id="evSeriesQuizPicker" class="input-control">
-                <option value="">-- Choose a quiz to add to series --</option>
-              </select>
-              <button type="button" id="addSeriesQuizBtn" class="btn-sm" style="white-space:nowrap;">
-                <i data-lucide="plus" style="width:14px; height:14px;"></i> Add Round
-              </button>
-            </div>
-            <div id="evSeriesList" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
-          </div>
+        <div class="field-group" style="margin-bottom:10px;">
+          <label class="field-label">Format</label>
+          <select class="input-control q-type-select">
+            <option value="mcq">Multiple Choice (4 Options)</option>
+            <option value="tf">True / False</option>
+            <option value="text">Type the Answer</option>
+          </select>
+        </div>
 
         <div class="field-group" style="margin-bottom:10px;">
           <label class="field-label">Question Prompt *</label>
@@ -541,6 +581,11 @@
         </div>
 
         <div class="q-dynamic-fields"></div>
+
+        <div class="field-group" style="margin-top:10px;">
+          <label class="field-label">Explanation After Correction *</label>
+          <input type="text" class="input-control q-explanation-input" placeholder="Explain why this answer is right..." required />
+        </div>
       `;
 
       const typeSelect = wrapper.querySelector(".q-type-select");
@@ -558,7 +603,7 @@
             </div>
             <div class="field-group">
               <label class="field-label">Exact Correct Option *</label>
-              <input type="text" class="input-control q-answer-input" placeholder="Must match one of the 4 options" required />
+              <input type="text" class="input-control q-answer-input" placeholder="Must match one of the options" required />
             </div>
           `;
         } else if (t === "tf") {
@@ -575,7 +620,7 @@
           dynamicBox.innerHTML = `
             <div class="field-group">
               <label class="field-label">Exact Expected Answer *</label>
-              <input type="text" class="input-control q-answer-input" placeholder="e.g. H2O" required />
+              <input type="text" class="input-control q-answer-input" placeholder="Enter expected answer" required />
             </div>
           `;
         }
@@ -606,7 +651,6 @@
       ktQuestionsContainer.appendChild(createQuestionBlock(ktQuestionsContainer.children.length));
     });
 
-    // Initialize with 1 question block
     ktQuestionsContainer.appendChild(createQuestionBlock(0));
 
     document.getElementById("kwizTeamQuizForm").addEventListener("submit", async (e) => {
@@ -626,9 +670,10 @@
         const type = block.querySelector(".q-type-select").value;
         const prompt = block.querySelector(".q-prompt-input").value.trim();
         const answer = block.querySelector(".q-answer-input").value.trim();
+        const explanation = block.querySelector(".q-explanation-input").value.trim();
 
-        if (!prompt || !answer) {
-          showToast("Every question must have a prompt and a correct answer.", "error");
+        if (!prompt || !answer || !explanation) {
+          showToast("Each question needs a prompt, answer, and explanation.", "error");
           return;
         }
 
@@ -650,7 +695,7 @@
           options = ["True", "False"];
         }
 
-        questions.push({ type, prompt, options, answer });
+        questions.push({ type, prompt, options, answer, explanation });
       }
 
       const btn = document.getElementById("publishKtQuizBtn");
@@ -674,22 +719,27 @@
           plays: 0,
           likes: 0,
           likedBy: [],
+          comments: [],
           questions
         };
 
         list.unshift(newQuiz);
+        freshBin.categories = KWIZ_CATEGORIES.map((c) => c.name);
         freshBin.quizzes = list;
         await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
 
         quizzesBinData = freshBin;
         document.getElementById("kwizTeamQuizForm").reset();
+        initCategoryDropdown();
         ktQuestionsContainer.innerHTML = "";
         ktQuestionsContainer.appendChild(createQuestionBlock(0));
 
         populateEventQuizSelector();
         renderQuizzesDashboard();
+        playKwizSound("correct");
         showToast(`Published "${title}" under Kwiz Team!`);
       } catch (err) {
+        playKwizSound("wrong");
         showToast("Failed to publish quiz: " + err.message, "error");
       } finally {
         btn.disabled = false;
@@ -697,22 +747,74 @@
       }
     });
 
-    // ==================== LIVE EVENTS MANAGER ====================
-    function populateEventQuizSelector() {
-      const sel = document.getElementById("evContestQuiz");
+    // ==================== EVENT SERIES MANAGER ====================
+    function renderEventSeriesList() {
+      const container = document.getElementById("evSeriesList");
       const quizzes = Array.isArray(quizzesBinData.quizzes) ? quizzesBinData.quizzes : [];
-      const currentVal = quizzesBinData.activeEvent?.contestQuizId || sel.value;
 
+      if (eventSeriesIds.length === 0) {
+        container.innerHTML = `<div style="font-size:0.78rem; color:var(--text-muted);">No series quizzes added yet.</div>`;
+        return;
+      }
+
+      container.innerHTML = eventSeriesIds
+        .map((qId, idx) => {
+          const found = quizzes.find((q) => q.id === qId);
+          const label = found ? `${found.title} (${found.category || "Mix"})` : `Quiz ID: ${qId}`;
+          return `
+            <div class="manage-card" style="padding:8px 12px; margin-bottom:0;">
+              <span style="font-size:0.84rem; font-weight:700;">
+                Round ${idx + 1}: ${escapeHtml(label)}
+              </span>
+              <div class="manage-actions">
+                ${idx > 0 ? `<button type="button" class="btn-sm" onclick="moveSeriesQuiz(${idx}, -1)">↑</button>` : ""}
+                ${idx < eventSeriesIds.length - 1 ? `<button type="button" class="btn-sm" onclick="moveSeriesQuiz(${idx}, 1)">↓</button>` : ""}
+                <button type="button" class="btn-sm danger" onclick="removeSeriesQuiz(${idx})">✕</button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function moveSeriesQuiz(index, delta) {
+      const target = index + delta;
+      if (target < 0 || target >= eventSeriesIds.length) return;
+      const temp = eventSeriesIds[index];
+      eventSeriesIds[index] = eventSeriesIds[target];
+      eventSeriesIds[target] = temp;
+      renderEventSeriesList();
+    }
+
+    function removeSeriesQuiz(index) {
+      eventSeriesIds.splice(index, 1);
+      renderEventSeriesList();
+    }
+
+    document.getElementById("addSeriesQuizBtn").addEventListener("click", () => {
+      const picker = document.getElementById("evSeriesQuizPicker");
+      const chosenId = picker.value;
+      if (!chosenId) return;
+      if (eventSeriesIds.includes(chosenId)) {
+        showToast("That quiz is already in this event series.", "error");
+        return;
+      }
+      eventSeriesIds.push(chosenId);
+      picker.value = "";
+      renderEventSeriesList();
+    });
+
+    function populateEventQuizSelector() {
+      const sel = document.getElementById("evSeriesQuizPicker");
+      const quizzes = Array.isArray(quizzesBinData.quizzes) ? quizzesBinData.quizzes : [];
       sel.innerHTML =
-        `<option value="">-- Select a quiz for this contest --</option>` +
+        `<option value="">-- Choose a quiz to add to series --</option>` +
         quizzes
           .map(
             (q) =>
               `<option value="${escapeHtml(q.id)}">${escapeHtml(q.title)} (${escapeHtml(q.authorName || "Creator")})</option>`
           )
           .join("");
-
-      if (currentVal) sel.value = currentVal;
     }
 
     function fillEventFormFromBin() {
@@ -724,7 +826,6 @@
       document.getElementById("evLogoUrl").value = ev.logoUrl || "";
       document.getElementById("evIconUrl").value = ev.iconUrl || "";
       if (ev.endsAt) {
-        // Format ISO string to yyyy-MM-ddTHH:mm for datetime-local
         const dt = new Date(ev.endsAt);
         if (!Number.isNaN(dt.getTime())) {
           const pad = (n) => String(n).padStart(2, "0");
@@ -732,7 +833,17 @@
           document.getElementById("evEndsAt").value = localStr;
         }
       }
+
+      if (Array.isArray(ev.seriesQuizIds) && ev.seriesQuizIds.length > 0) {
+        eventSeriesIds = [...ev.seriesQuizIds];
+      } else if (ev.contestQuizId) {
+        eventSeriesIds = [ev.contestQuizId];
+      } else {
+        eventSeriesIds = [];
+      }
+
       populateEventQuizSelector();
+      renderEventSeriesList();
     }
 
     document.getElementById("eventConfigForm").addEventListener("submit", async (e) => {
@@ -741,16 +852,17 @@
       const theme = document.getElementById("evTheme").value;
       const endsAtRaw = document.getElementById("evEndsAt").value;
       const prize = document.getElementById("evPrize").value.trim();
-      const contestQuizId = document.getElementById("evContestQuiz").value;
       const logoUrl = document.getElementById("evLogoUrl").value.trim();
       const iconUrl = document.getElementById("evIconUrl").value.trim();
 
       if (!title || !endsAtRaw) {
-        showToast("Event Name and End Date/Time are required.", "error");
+        showToast("Event Series Name and End Date/Time are required.", "error");
         return;
       }
 
       const endsAtIso = new Date(endsAtRaw).toISOString();
+      const seriesQuizIds = [...eventSeriesIds];
+      const contestQuizId = seriesQuizIds[0] || "";
       const btn = document.getElementById("saveEventBtn");
       btn.disabled = true;
 
@@ -762,6 +874,7 @@
           theme,
           prize,
           contestQuizId,
+          seriesQuizIds,
           logoUrl,
           iconUrl,
           endsAt: endsAtIso
@@ -772,8 +885,10 @@
         await applyEventBranding(document.getElementById("adminBrandLogo"), freshBin);
         const sessionUser = getSessionUser() || { role: "admin", username: "admin" };
         renderBottomNav("admin", { ...sessionUser, role: "admin" }, iconUrl);
-        showToast(`Live Event "${title}" is now active!`);
+        playKwizSound("correct");
+        showToast(`Event Series "${title}" is now live!`);
       } catch (err) {
+        playKwizSound("wrong");
         showToast("Error saving event: " + err.message, "error");
       } finally {
         btn.disabled = false;
@@ -783,12 +898,15 @@
     document.getElementById("resetEventBtn").addEventListener("click", async () => {
       try {
         const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+        eventSeriesIds = [];
+        renderEventSeriesList();
         freshBin.activeEvent = {
           isActive: false,
           title: "",
           theme: "default",
           prize: "",
           contestQuizId: "",
+          seriesQuizIds: [],
           logoUrl: "",
           iconUrl: "",
           endsAt: ""
@@ -972,7 +1090,7 @@
                 ${escapeHtml(q.title)}
               </div>
               <div style="font-size:0.78rem; color:var(--text-secondary);">
-                ${escapeHtml(q.category || "Mix")} • by ${escapeHtml(q.authorName || "Creator")} • ${(q.questions || []).length} Qs • ▶ ${Number(q.plays) || 0}
+                ${escapeHtml(q.category || "General Knowledge & Miscellaneous")} • by ${escapeHtml(q.authorName || "Player")} • ${(q.questions || []).length} Qs
               </div>
             </div>
             <div class="manage-actions">
@@ -991,30 +1109,33 @@
       const quiz = (quizzesBinData.quizzes || []).find((q) => q.id === quizId);
       if (!quiz) return;
 
-      document.getElementById("editModalTitle").textContent = `Edit Quiz`;
+      const catOptions = KWIZ_CATEGORIES.map(
+        (c) =>
+          `<option value="${escapeHtml(c.name)}" ${quiz.category === c.name ? "selected" : ""}>${escapeHtml(c.name)}</option>`
+      ).join("");
+
+      document.getElementById("editModalTitle").textContent = "Edit Quiz & Details";
       document.getElementById("editModalBody").innerHTML = `
         <form id="editQuizForm" style="display:flex; flex-direction:column; gap:12px;">
           <div class="field-group">
             <label class="field-label">Quiz Title</label>
             <input type="text" id="eqTitle" class="input-control" value="${escapeHtml(quiz.title || "")}" required />
           </div>
-          <div class="row-2">
-            <div class="field-group">
-              <label class="field-label">Category</label>
-              <input type="text" id="eqCategory" class="input-control" value="${escapeHtml(quiz.category || "")}" required />
-            </div>
-            <div class="field-group">
-              <label class="field-label">Author Display Name</label>
-              <input type="text" id="eqAuthor" class="input-control" value="${escapeHtml(quiz.authorName || "")}" required />
-            </div>
+          <div class="field-group">
+            <label class="field-label">Category</label>
+            <select id="eqCategory" class="input-control">${catOptions}</select>
           </div>
           <div class="field-group">
-            <label class="field-label">Cover Image URL (for Slideshow)</label>
+            <label class="field-label">Author Display Name</label>
+            <input type="text" id="eqAuthor" class="input-control" value="${escapeHtml(quiz.authorName || "")}" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Cover Image URL (for Slideshow &amp; Details)</label>
             <input type="url" id="eqCover" class="input-control" value="${escapeHtml(quiz.coverImage || "")}" placeholder="https://..." />
           </div>
           <div class="field-group">
-            <label class="field-label">Description</label>
-            <textarea id="eqDesc" class="input-control">${escapeHtml(quiz.description || "")}</textarea>
+            <label class="field-label">Quiz Details / Description</label>
+            <textarea id="eqDesc" class="input-control" placeholder="Add details for this quiz...">${escapeHtml(quiz.description || "")}</textarea>
           </div>
           <label style="display:flex; align-items:center; gap:8px; font-size:0.84rem; color:var(--text-secondary);">
             <input type="checkbox" id="eqOfficial" ${quiz.isOfficial ? "checked" : ""} />
@@ -1036,7 +1157,7 @@
           if (!target) return;
 
           target.title = document.getElementById("eqTitle").value.trim();
-          target.category = document.getElementById("eqCategory").value.trim();
+          target.category = document.getElementById("eqCategory").value;
           target.authorName = document.getElementById("eqAuthor").value.trim();
           target.coverImage = document.getElementById("eqCover").value.trim();
           target.description = document.getElementById("eqDesc").value.trim();
@@ -1083,6 +1204,7 @@
 
     // ==================== INITIAL LOAD ====================
     async function loadAdminData() {
+      initCategoryDropdown();
       try {
         const [qData, uData] = await Promise.all([
           readBin(KWIZ_CONFIG.quizzesBinId),
@@ -1104,7 +1226,7 @@
       }
     }
 
-    // Boot state
+    initCategoryDropdown();
     applyEventBranding(document.getElementById("gateLogo"));
     if (sessionStorage.getItem(ADMIN_UNLOCK_KEY) === "true") {
       unlockDashboard();
