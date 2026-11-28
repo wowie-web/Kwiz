@@ -20,10 +20,15 @@
         <img id="topBrandLogo" src="logo.png" alt="Kwiz" />
         <div class="top-brand-text">K<span>wiz</span></div>
       </a>
-      <a href="profile.html" class="user-pill" id="topUserPill">
-        <span class="user-pill-avatar" id="topUserAvatar">🧠</span>
-        <span id="topUserName">Player</span>
-      </a>
+      <div class="top-right-actions">
+        <button type="button" id="soundToggleBtn" class="icon-pill-btn" aria-label="Toggle sound effects" title="Sound effects">
+          <i id="soundIcon" data-lucide="volume-2" style="width:17px; height:17px;"></i>
+        </button>
+        <a href="profile.html" class="user-pill" id="topUserPill">
+          <span class="user-pill-avatar" id="topUserAvatar">🧠</span>
+          <span id="topUserName">Player</span>
+        </a>
+      </div>
     </header>
 
     <!-- RANK & REPLAY KEY BAR -->
@@ -76,7 +81,7 @@
       <button type="button" id="eventPlayBtn" class="btn-play" style="display: none;">Join</button>
     </section>
 
-    <!-- KWIZ TEAM SLIDESHOW (Tap image or slide to go to quiz) -->
+    <!-- KWIZ TEAM SLIDESHOW -->
     <section class="section-block" aria-label="Featured by Kwiz Team">
       <div class="section-head">
         <h2 class="section-title">
@@ -150,21 +155,21 @@
     </section>
   </div>
 
-  <!-- SOLO QUIZ PLAYER MODAL -->
-  <div id="quizPlayerModal" class="player-modal" role="dialog" aria-modal="true" aria-label="Solo Quiz Player">
+  <!-- QUIZ DETAILS / COMMENTS & SOLO QUIZ PLAYER MODAL -->
+  <div id="quizPlayerModal" class="player-modal" role="dialog" aria-modal="true" aria-label="Quiz Lobby and Player">
     <div class="player-inner">
       <div class="player-top">
         <button type="button" id="closePlayerBtn" class="btn-ghost" style="display:inline-flex; align-items:center; gap:5px;">
-          <i data-lucide="x" style="width:15px; height:15px;"></i> Exit
+          <i data-lucide="x" style="width:15px; height:15px;"></i> Close
         </button>
         <div id="playerProgressText" style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);">
-          1 / 1
+          Quiz Details
         </div>
         <div id="playerScoreText" style="font-size: 0.85rem; font-weight: 800; color: var(--accent-warm);">
           0 pts
         </div>
       </div>
-      <div class="progress-track">
+      <div class="progress-track" id="playerProgressTrack" style="display:none;">
         <div id="playerProgressFill" class="progress-fill"></div>
       </div>
       <div id="playerStage" class="question-box"></div>
@@ -181,15 +186,28 @@
     let currentSlideIndex = 0;
     let slideTimer = null;
 
+    let lobbyQuizId = null;
     let activeQuiz = null;
     let activeQuizUsedKey = false;
     let qIndex = 0;
     let currentScore = 0;
     let correctCount = 0;
 
-    function renderEmojiAvatar(avatarVal) {
-      return escapeHtml(normalizeEmojiAvatar(avatarVal));
+    function syncSoundIcon() {
+      const enabled = isSoundEnabled();
+      const btn = document.getElementById("soundToggleBtn");
+      const icon = document.getElementById("soundIcon");
+      if (!btn || !icon) return;
+      btn.classList.toggle("sound-on", enabled);
+      icon.setAttribute("data-lucide", enabled ? "volume-2" : "volume-x");
+      refreshLucideIcons();
     }
+
+    document.getElementById("soundToggleBtn").addEventListener("click", () => {
+      setSoundEnabled(!isSoundEnabled());
+      syncSoundIcon();
+      playKwizSound("tap");
+    });
 
     function initTopUserAndRank(userObj = currentUserRecord) {
       if (!userObj) return;
@@ -267,7 +285,7 @@
             <article
               class="slide-card ${hasImg ? "has-image" : ""}"
               style="cursor: pointer;"
-              onclick="openQuizFromSlide('${escapeHtml(q.id)}')"
+              onclick="openQuizLobby('${escapeHtml(q.id)}')"
             >
               ${
                 hasImg
@@ -276,22 +294,22 @@
                       src="${escapeHtml(imgUrl)}"
                       alt="${escapeHtml(q.title)}"
                       title="Open ${escapeHtml(q.title)}"
-                      onclick="event.stopPropagation(); openQuizFromSlide('${escapeHtml(q.id)}')"
+                      onclick="event.stopPropagation(); openQuizLobby('${escapeHtml(q.id)}')"
                       onerror="this.remove()"
                     />`
                   : ""
               }
               <div class="slide-content">
-                <span class="official-pill">${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "Mix")}</span>
+                <span class="official-pill">${escapeHtml(q.authorName || "Kwiz Team")} • ${escapeHtml(q.category || "General Knowledge & Miscellaneous")}</span>
                 <h3 class="slide-title">${escapeHtml(q.title)}</h3>
-                <p class="slide-desc">${escapeHtml(q.description || `${(q.questions || []).length} questions`)}</p>
+                <p class="slide-desc">${escapeHtml(q.description || "Details will be added by Kwiz Team.")}</p>
                 <div class="slide-footer">
                   <span class="slide-stats">${Number(q.plays) || 0} plays • ${getLikeCount(q)} likes</span>
                   <button
                     type="button"
                     class="btn-play"
-                    onclick="event.stopPropagation(); openQuizFromSlide('${escapeHtml(q.id)}')"
-                  >${done ? "Use Key" : "Open Quiz"}</button>
+                    onclick="event.stopPropagation(); openQuizLobby('${escapeHtml(q.id)}')"
+                  >${done ? "Details / Key" : "View Quiz"}</button>
                 </div>
               </div>
             </article>
@@ -331,10 +349,6 @@
       };
 
       refreshLucideIcons();
-    }
-
-    function openQuizFromSlide(quizId) {
-      startQuiz(quizId);
     }
 
     function goToSlide(index, total) {
@@ -383,7 +397,7 @@
                 <span class="history-score">${escapeHtml(item.scoreLabel || `${item.score || 0} pts`)}</span>
                 ${
                   exists
-                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px;" onclick="startQuiz('${escapeHtml(item.quizId)}')">
+                    ? `<button type="button" class="btn-ghost" style="padding:4px 9px; font-size:0.74rem; display:inline-flex; align-items:center; gap:4px;" onclick="openQuizLobby('${escapeHtml(item.quizId)}')">
                         <i data-lucide="key-round" style="width:12px; height:12px;"></i> Key
                        </button>`
                     : `<span style="font-size:0.72rem; color:var(--text-muted);">Archived</span>`
@@ -404,10 +418,15 @@
       const liked = hasUserLiked(quiz);
       const likes = getLikeCount(quiz);
       const plays = Number(quiz.plays) || 0;
+      const commentsCount = Array.isArray(quiz.comments) ? quiz.comments.length : 0;
       const done = hasCompletedQuiz(currentUserRecord, quiz.id);
-      const authorLink = quiz.authorId
+      const authorLink = quiz.authorId && quiz.authorId !== "kwiz_team"
         ? `profile.html?user=${encodeURIComponent(quiz.authorId)}`
         : "#";
+
+      const authorMarkup = authorLink !== "#"
+        ? `<a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Player")}</a>`
+        : `<span>${escapeHtml(quiz.authorName || "Kwiz Team")}</span>`;
 
       return `
         <article class="quiz-card">
@@ -415,21 +434,21 @@
             ${
               hasImg
                 ? `<img src="${escapeHtml(imgUrl)}" alt="" onerror="this.remove()" />`
-                : escapeHtml(rankBadge || (quiz.title || "K").charAt(0).toUpperCase())
+                : `<i data-lucide="sparkles" style="width:20px; height:20px;"></i>`
             }
           </div>
           <div class="quiz-info">
-            <div class="quiz-cat">${escapeHtml(quiz.category || "General")}</div>
+            <div class="quiz-cat">${escapeHtml(quiz.category || "General Knowledge & Miscellaneous")}</div>
             <h3 class="quiz-title">${escapeHtml(quiz.title)}</h3>
             <div class="quiz-meta">
-              <span>by <a class="author-link" href="${authorLink}">${escapeHtml(quiz.authorName || "Kwiz Team")}</a></span>
+              <span>by ${authorMarkup}</span>
               <span>• ${plays} plays</span>
-              <span>• ${(quiz.questions || []).length} Qs</span>
+              <span>• ${commentsCount} comments</span>
             </div>
           </div>
           <div class="quiz-actions">
-            <button type="button" class="btn-play" onclick="startQuiz('${escapeHtml(quiz.id)}')">
-              ${done ? "Key Replay" : "Play"}
+            <button type="button" class="btn-play" onclick="openQuizLobby('${escapeHtml(quiz.id)}')">
+              ${done ? "Key Lobby" : "Play"}
             </button>
             <button type="button" class="btn-like ${liked ? "liked" : ""}" onclick="toggleLike('${escapeHtml(quiz.id)}')">
               <i data-lucide="heart" style="width:13px; height:13px;"></i> ${likes}
@@ -462,7 +481,7 @@
         .join("");
 
       hottestContainer.innerHTML = hottest
-        .map((q) => buildQuizCardHtml(q, "★"))
+        .map((q) => buildQuizCardHtml(q, "HOT"))
         .join("");
 
       refreshLucideIcons();
@@ -494,6 +513,9 @@
         allQuizzes = quizzes;
         renderSlideshow(allQuizzes);
         renderTrendingAndHottest();
+        if (lobbyQuizId === quizId && !activeQuiz) {
+          openQuizLobby(quizId);
+        }
       } catch (err) {
         alert("Could not update like: " + err.message);
       }
@@ -547,7 +569,7 @@
               return `
                 <a class="search-item" href="profile.html?user=${encodeURIComponent(u.id)}">
                   <div class="search-item-main">
-                    <div class="search-item-badge">${renderEmojiAvatar(u.avatar)}</div>
+                    <div class="search-item-badge">${escapeHtml(normalizeEmojiAvatar(u.avatar))}</div>
                     <div>
                       <div class="search-item-title">${escapeHtml(u.fullName || u.username)}</div>
                       <div class="search-item-sub">@${escapeHtml(u.username)} • ${escapeHtml(rInfo.name)} (${u.stats?.totalScore || 0} pts)</div>
@@ -566,7 +588,7 @@
             .slice(0, 6)
             .map(
               (q) => `
-              <div class="search-item" onclick="startQuiz('${escapeHtml(q.id)}')">
+              <div class="search-item" onclick="openQuizLobby('${escapeHtml(q.id)}')">
                 <div class="search-item-main">
                   <div class="search-item-badge"><i data-lucide="file-question" style="width:17px; height:17px; color:var(--accent-cyan);"></i></div>
                   <div>
@@ -604,15 +626,143 @@
       });
     }
 
-    // ==================== SOLO QUIZ PLAYER + REPLAY LOCK / KEY ====================
-    async function startQuiz(quizId) {
+    // ==================== PRE-QUIZ DETAILS, LIKES & COMMENTS ====================
+    function openQuizLobby(quizId) {
+      const quiz = allQuizzes.find((q) => q.id === quizId);
+      if (!quiz) return;
+
+      document.getElementById("searchResultsPanel").classList.remove("open");
+      lobbyQuizId = quiz.id;
+      activeQuiz = null;
+
+      document.getElementById("playerProgressTrack").style.display = "none";
+      document.getElementById("playerProgressText").textContent = "Quiz Details";
+      document.getElementById("playerScoreText").textContent = `${(quiz.questions || []).length} Qs`;
+
+      const imgUrl = String(quiz.coverImage || quiz.imageUrl || quiz.image || "").trim();
+      const hasDetails = Boolean(String(quiz.description || "").trim());
+      const liked = hasUserLiked(quiz);
+      const likes = getLikeCount(quiz);
+      const comments = Array.isArray(quiz.comments) ? quiz.comments : [];
+      const done = hasCompletedQuiz(currentUserRecord, quiz.id);
+
+      const stage = document.getElementById("playerStage");
+      stage.innerHTML = `
+        ${
+          imgUrl
+            ? `<div style="border-radius:var(--radius-md); overflow:hidden; margin-bottom:14px; max-height:190px;">
+                 <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(quiz.title)}" style="width:100%; height:190px; object-fit:cover; display:block;" onerror="this.parentElement.remove()" />
+               </div>`
+            : `<div class="explanation-box" style="margin-top:0; margin-bottom:14px;">
+                 Cover image pending — Kwiz Team can add an image for this quiz anytime.
+               </div>`
+        }
+
+        <div class="q-type-tag">${escapeHtml(quiz.category || "General Knowledge & Miscellaneous")}</div>
+        <h2 style="font-size:1.25rem; font-weight:800; margin-bottom:6px;">${escapeHtml(quiz.title)}</h2>
+        <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:12px;">
+          Created by <strong>${escapeHtml(quiz.authorName || "Kwiz Team")}</strong> • ${Number(quiz.plays) || 0} plays
+        </p>
+
+        <p style="font-size:0.9rem; color:var(--text-primary); margin-bottom:16px;">
+          ${
+            hasDetails
+              ? escapeHtml(quiz.description)
+              : `<span style="color:var(--text-secondary); font-style:italic;">No extra details added yet for this quiz.</span>`
+          }
+        </p>
+
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+          <button type="button" class="btn-like ${liked ? "liked" : ""}" style="padding:8px 14px; font-size:0.84rem;" onclick="toggleLike('${escapeHtml(quiz.id)}')">
+            <i data-lucide="heart" style="width:15px; height:15px;"></i> ${liked ? "Liked" : "Like"} (${likes})
+          </button>
+          <button type="button" id="startFromLobbyBtn" class="submit-btn" style="margin-top:0; flex:1;">
+            ${done ? "Replay with Key" : "Start Quiz"}
+          </button>
+        </div>
+
+        <hr style="border:none; border-top:1px solid var(--border-subtle); margin:16px 0;" />
+
+        <h3 style="font-size:0.96rem; font-weight:800; margin-bottom:10px;">
+          Comments (${comments.length})
+        </h3>
+
+        <form id="commentForm" style="display:flex; gap:8px; margin-bottom:14px;">
+          <input
+            type="text"
+            id="commentInput"
+            class="input-control"
+            placeholder="Write a friendly comment..."
+            maxlength="240"
+            required
+          />
+          <button type="submit" class="btn-play" style="border-radius:var(--radius-sm); padding:0 14px;">Post</button>
+        </form>
+
+        <div id="commentsList">
+          ${
+            comments.length === 0
+              ? `<div style="font-size:0.83rem; color:var(--text-muted);">No comments yet. Be the first!</div>`
+              : [...comments]
+                  .reverse()
+                  .map(
+                    (c) => `
+                    <div class="comment-card">
+                      <div style="font-size:0.78rem; font-weight:700; color:var(--accent-warm); margin-bottom:2px;">
+                        ${escapeHtml(normalizeEmojiAvatar(c.avatar))} @${escapeHtml(c.username || "player")}
+                      </div>
+                      <div style="font-size:0.86rem; color:var(--text-primary);">${escapeHtml(c.text)}</div>
+                    </div>
+                  `
+                  )
+                  .join("")
+          }
+        </div>
+      `;
+
+      document.getElementById("quizPlayerModal").classList.add("open");
+      refreshLucideIcons();
+
+      document.getElementById("startFromLobbyBtn").onclick = () => beginQuizQuestions(quiz.id);
+
+      document.getElementById("commentForm").onsubmit = async (e) => {
+        e.preventDefault();
+        const text = document.getElementById("commentInput").value.trim();
+        if (!text || !currentUserRecord) return;
+
+        try {
+          const freshBin = await readBin(KWIZ_CONFIG.quizzesBinId);
+          const list = Array.isArray(freshBin.quizzes) ? freshBin.quizzes : [];
+          const target = list.find((q) => q.id === quiz.id);
+          if (!target) return;
+
+          if (!Array.isArray(target.comments)) target.comments = [];
+          target.comments.push({
+            userId: currentUserRecord.id,
+            username: currentUserRecord.username,
+            avatar: normalizeEmojiAvatar(currentUserRecord.avatar),
+            text,
+            createdAt: new Date().toISOString()
+          });
+
+          freshBin.quizzes = list;
+          await writeBin(KWIZ_CONFIG.quizzesBinId, freshBin);
+          allQuizzes = list;
+          renderTrendingAndHottest();
+          openQuizLobby(quiz.id);
+        } catch (err) {
+          alert("Could not post comment: " + err.message);
+        }
+      };
+    }
+
+    // ==================== SOLO QUIZ PLAYER + EXPLANATIONS ====================
+    async function beginQuizQuestions(quizId) {
       const quiz = allQuizzes.find((q) => q.id === quizId);
       if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
         alert("This quiz has no questions yet.");
         return;
       }
-
-      document.getElementById("searchResultsPanel").classList.remove("open");
 
       const alreadyDone = hasCompletedQuiz(currentUserRecord, quiz.id);
       activeQuizUsedKey = false;
@@ -624,22 +774,22 @@
 
         if (pts < KWIZ_CONFIG.replayKeyMinPoints || rankInfo.maxReplayKeys <= 0) {
           alert(
-            `You already completed "${quiz.title}". Replays require at least ${KWIZ_CONFIG.replayKeyMinPoints.toLocaleString()} points and a qualifying rank (${rankInfo.name} currently has ${rankInfo.maxReplayKeys} max replay keys).`
+            `You already completed "${quiz.title}". Replays require at least ${KWIZ_CONFIG.replayKeyMinPoints.toLocaleString()} points and a qualifying rank (${rankInfo.name} has ${rankInfo.maxReplayKeys} max replay keys).`
           );
           return;
         }
 
         if (keysLeft <= 0) {
           alert(
-            `You already completed "${quiz.title}" and have 0 Replay Keys remaining for your ${rankInfo.name} rank limit (${rankInfo.maxReplayKeys} keys).`
+            `You already completed "${quiz.title}" and have 0 Replay Keys remaining for ${rankInfo.name} (${rankInfo.maxReplayKeys} max).`
           );
           return;
         }
 
-        const confirmUse = confirm(
-          `You already completed "${quiz.title}". Use 1 Replay Key to play again? (${keysLeft} key(s) available under ${rankInfo.name} limit)`
+        const ok = confirm(
+          `Use 1 Replay Key to play "${quiz.title}" again? (${keysLeft} key(s) left)`
         );
-        if (!confirmUse) return;
+        if (!ok) return;
 
         try {
           const freshUsersBin = await readBin(KWIZ_CONFIG.usersBinId);
@@ -647,8 +797,7 @@
           const me = uList.find((u) => u.id === currentUserRecord.id);
           if (!me) return;
 
-          const latestKeys = getAvailableReplayKeys(me);
-          if (latestKeys <= 0) {
+          if (getAvailableReplayKeys(me) <= 0) {
             alert("No Replay Keys available.");
             return;
           }
@@ -662,7 +811,7 @@
           initTopUserAndRank(me);
           activeQuizUsedKey = true;
         } catch (err) {
-          alert("Could not consume Replay Key: " + err.message);
+          alert("Could not use Replay Key: " + err.message);
           return;
         }
       }
@@ -672,7 +821,7 @@
       currentScore = 0;
       correctCount = 0;
 
-      document.getElementById("quizPlayerModal").classList.add("open");
+      document.getElementById("playerProgressTrack").style.display = "block";
       renderQuestionStep();
     }
 
@@ -693,17 +842,19 @@
           <div class="q-type-tag">${typeLabel}</div>
           <div class="q-prompt">${escapeHtml(q.prompt)}</div>
           <div class="field-group" style="margin-bottom:12px;">
-            <input type="text" id="textAnswerInput" class="input-control" placeholder="Type your answer here..." autocomplete="off" />
+            <input type="text" id="textAnswerInput" class="input-control" placeholder="Type your answer..." autocomplete="off" />
           </div>
           <button type="button" id="submitTextAnswerBtn" class="submit-btn">Submit Answer</button>
-          <div id="answerFeedback" style="margin-top:12px; font-size:0.88rem; font-weight:700;"></div>
+          <div id="answerArea"></div>
         `;
 
         document.getElementById("submitTextAnswerBtn").onclick = () => {
           const val = document.getElementById("textAnswerInput").value.trim();
           if (!val) return;
+          document.getElementById("textAnswerInput").disabled = true;
+          document.getElementById("submitTextAnswerBtn").disabled = true;
           const isRight = val.toLowerCase() === String(q.answer || "").trim().toLowerCase();
-          handleAnswered(isRight, q.answer);
+          handleAnswered(isRight, q.answer, q.explanation);
         };
       } else {
         const opts =
@@ -722,7 +873,7 @@
               )
               .join("")}
           </div>
-          <div id="answerFeedback" style="margin-top:12px; font-size:0.88rem; font-weight:700;"></div>
+          <div id="answerArea"></div>
         `;
 
         stage.querySelectorAll(".option-btn").forEach((btn) => {
@@ -737,32 +888,41 @@
                 b.classList.add("wrong");
               }
             });
-            handleAnswered(isRight, q.answer);
+            handleAnswered(isRight, q.answer, q.explanation);
           };
         });
       }
     }
 
-    function handleAnswered(isRight, correctAnswer) {
+    function handleAnswered(isRight, correctAnswer, explanationText) {
       if (isRight) {
         currentScore += 100;
         correctCount += 1;
+        playKwizSound("correct");
+      } else {
+        playKwizSound("wrong");
       }
+
       document.getElementById("playerScoreText").textContent = `${currentScore} pts`;
 
-      const fb = document.getElementById("answerFeedback");
-      fb.style.color = isRight ? "var(--success)" : "var(--danger)";
-      fb.textContent = isRight
-        ? "Correct! +100 pts"
-        : `Not quite — Correct answer: ${correctAnswer}`;
+      const exp =
+        String(explanationText || "").trim() ||
+        `The correct answer is ${correctAnswer}.`;
 
-      const nextBtn = document.createElement("button");
-      nextBtn.type = "button";
-      nextBtn.className = "submit-btn";
-      nextBtn.style.marginTop = "14px";
-      nextBtn.textContent =
-        qIndex + 1 < activeQuiz.questions.length ? "Next Question →" : "Finish & Save Score";
-      nextBtn.onclick = () => {
+      const area = document.getElementById("answerArea");
+      area.innerHTML = `
+        <div style="margin-top:14px; font-size:0.9rem; font-weight:800; color:${isRight ? "var(--success)" : "var(--danger)"};">
+          ${isRight ? "Correct! +100 pts" : `Incorrect — Answer: ${escapeHtml(correctAnswer)}`}
+        </div>
+        <div class="explanation-box">
+          <strong style="color:var(--text-primary);">Explanation:</strong> ${escapeHtml(exp)}
+        </div>
+        <button type="button" id="nextQBtn" class="submit-btn" style="margin-top:14px;">
+          ${qIndex + 1 < activeQuiz.questions.length ? "Next Question →" : "Finish & Save Score"}
+        </button>
+      `;
+
+      document.getElementById("nextQBtn").onclick = () => {
         if (qIndex + 1 < activeQuiz.questions.length) {
           qIndex += 1;
           renderQuestionStep();
@@ -770,19 +930,21 @@
           finishQuizRun();
         }
       };
-      document.getElementById("playerStage").appendChild(nextBtn);
     }
 
     async function finishQuizRun() {
+      playKwizSound("complete");
+      document.getElementById("playerProgressTrack").style.display = "none";
       const stage = document.getElementById("playerStage");
       const totalQs = activeQuiz.questions.length;
+
       stage.innerHTML = `
         <div style="text-align:center; padding:10px 0;">
-          <div style="font-size:2.4rem; margin-bottom:6px;">🏆</div>
-          <h2 style="font-size:1.3rem; font-weight:800; margin-bottom:4px;">Quiz Complete!</h2>
+          <div style="font-size:2.2rem; margin-bottom:6px;">🏆</div>
+          <h2 style="font-size:1.25rem; font-weight:800; margin-bottom:4px;">Quiz Complete!</h2>
           <p style="color:var(--text-secondary); margin-bottom:14px;">${escapeHtml(activeQuiz.title)}</p>
-          <div style="font-size:1.8rem; font-weight:800; color:var(--accent-warm); margin-bottom:4px;">${currentScore} pts</div>
-          <div style="font-size:0.9rem; color:var(--success); font-weight:700; margin-bottom:18px;">
+          <div style="font-size:1.75rem; font-weight:800; color:var(--accent-warm); margin-bottom:4px;">${currentScore} pts</div>
+          <div style="font-size:0.88rem; color:var(--success); font-weight:700; margin-bottom:16px;">
             ${correctCount} of ${totalQs} correct
           </div>
           <p id="syncSaveStatus" style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:16px;">
@@ -793,6 +955,8 @@
       `;
 
       document.getElementById("doneQuizBtn").onclick = () => {
+        activeQuiz = null;
+        lobbyQuizId = null;
         document.getElementById("quizPlayerModal").classList.remove("open");
       };
 
@@ -813,17 +977,16 @@
         if (me) {
           if (!me.stats) me.stats = { quizzesPlayed: 0, quizzesCreated: 0, totalScore: 0 };
           me.stats.quizzesPlayed = (Number(me.stats.quizzesPlayed) || 0) + 1;
-          const nextTotal = Math.min(
+          me.stats.totalScore = Math.min(
             KWIZ_CONFIG.maxPoints,
             (Number(me.stats.totalScore) || 0) + currentScore
           );
-          me.stats.totalScore = nextTotal;
 
           if (!Array.isArray(me.history)) me.history = [];
           me.history.push({
             quizId: activeQuiz.id,
             quizTitle: activeQuiz.title,
-            category: activeQuiz.category || "Mix",
+            category: activeQuiz.category || "General Knowledge & Miscellaneous",
             score: currentScore,
             usedReplayKey: activeQuizUsedKey,
             scoreLabel: `${correctCount}/${totalQs} (${currentScore} pts)`,
@@ -850,12 +1013,15 @@
     }
 
     document.getElementById("closePlayerBtn").addEventListener("click", () => {
+      activeQuiz = null;
+      lobbyQuizId = null;
       document.getElementById("quizPlayerModal").classList.remove("open");
     });
 
     // ==================== BOOTSTRAP HOME PAGE ====================
     async function bootHome() {
       if (!CURRENT_USER) return;
+      syncSoundIcon();
       renderBottomNav("home", currentUserRecord);
       initTopUserAndRank(currentUserRecord);
       setupSmartSearch();
@@ -880,13 +1046,30 @@
           const banner = document.getElementById("eventBanner");
           banner.classList.add("active");
           document.getElementById("eventTitle").textContent = activeEv.title || "Kwiz Live Event";
-          document.getElementById("eventPrize").textContent = activeEv.prize
-            ? `Prize: ${activeEv.prize}`
-            : "Compete in the featured event quiz!";
-          if (activeEv.contestQuizId) {
+
+          const seriesIds =
+            Array.isArray(activeEv.seriesQuizIds) && activeEv.seriesQuizIds.length > 0
+              ? activeEv.seriesQuizIds
+              : activeEv.contestQuizId
+              ? [activeEv.contestQuizId]
+              : [];
+
+          if (seriesIds.length > 0) {
+            const nextQuizId =
+              seriesIds.find((id) => !hasCompletedQuiz(currentUserRecord, id)) || seriesIds[0];
+            const currentRound = Math.max(1, seriesIds.indexOf(nextQuizId) + 1);
+            const prizeText = activeEv.prize ? `Prize: ${activeEv.prize} • ` : "";
+            document.getElementById("eventPrize").textContent =
+              `${prizeText}Series Round ${currentRound} of ${seriesIds.length}`;
+
             const playBtn = document.getElementById("eventPlayBtn");
             playBtn.style.display = "inline-block";
-            playBtn.onclick = () => startQuiz(activeEv.contestQuizId);
+            playBtn.textContent = `Round ${currentRound}`;
+            playBtn.onclick = () => openQuizLobby(nextQuizId);
+          } else {
+            document.getElementById("eventPrize").textContent = activeEv.prize
+              ? `Prize: ${activeEv.prize}`
+              : "Live event in progress!";
           }
         }
 
